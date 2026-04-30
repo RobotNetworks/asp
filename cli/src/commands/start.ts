@@ -2,6 +2,8 @@ import { Command, Option } from "commander";
 
 import { buildApp } from "../server/app.js";
 import { startServer, type ServerHandle } from "../server/runtime.js";
+import { runSupervisedChild } from "../supervisor/run.js";
+import { supervise } from "../supervisor/spawn.js";
 
 const DEFAULT_PORT = 8723;
 const DEFAULT_HOST = "127.0.0.1";
@@ -12,15 +14,19 @@ interface StartOptions {
   host: string;
   port: number;
   foreground: boolean;
+  internalSupervised: boolean;
 }
 
 /**
  * Register `asp start` on the program.
  *
- * Phase 1.1 supports only `--foreground`; the supervised (detached) mode
- * arrives in phase 1.2 alongside `stop`/`status`/`logs`. Defaulting `start`
- * to detached later is a planned UX shift, not a breaking one — the flag
- * is being introduced explicitly now so users learn the surface up front.
+ * Three internal modes — at most one applies per invocation:
+ *
+ *   default                 → supervisor: spawn self with --internal-supervised
+ *                             and exit once the child reports ready.
+ *   --foreground            → run the server in this terminal until SIGINT.
+ *   --internal-supervised   → become the long-running supervised child. Hidden
+ *                             from --help; only the supervisor invokes it.
  */
 export function registerStartCommand(program: Command): void {
   program
@@ -37,50 +43,70 @@ export function registerStartCommand(program: Command): void {
       parsePort,
       DEFAULT_PORT,
     )
-    .option(
-      "-H, --host <host>",
-      "Interface to bind",
-      DEFAULT_HOST,
-    )
+    .option("-H, --host <host>", "Interface to bind", DEFAULT_HOST)
     .addOption(
       new Option(
         "-f, --foreground",
         "Run in the foreground until interrupted",
       ).default(false),
     )
+    .addOption(
+      new Option(
+        "--internal-supervised",
+        "Internal: act as the supervised child. Do not use directly.",
+      )
+        .default(false)
+        .hideHelp(),
+    )
     .action(async (opts: StartOptions) => {
-      if (!opts.foreground) {
+      if (opts.foreground && opts.internalSupervised) {
         throw new Error(
-          "supervised mode is not yet implemented — pass --foreground to run the server in this terminal",
+          "--foreground and --internal-supervised cannot be combined",
         );
       }
-      await runForeground(opts);
+      if (opts.internalSupervised) {
+        await runSupervisedChild({
+          network: opts.network,
+          host: opts.host,
+          port: opts.port,
+        });
+        return;
+      }
+      if (opts.foreground) {
+        await runForeground(opts);
+        return;
+      }
+      await runDetached(opts);
     });
 }
 
 async function runForeground(opts: StartOptions): Promise<void> {
-  const app = buildApp({ network: opts.network });
   const handle = await startServer({
-    app,
+    app: buildApp({ network: opts.network }),
     host: opts.host,
     port: opts.port,
   });
-  printBanner(handle, opts.network);
+  process.stdout.write(
+    `ASP network "${opts.network}" listening on http://${handle.host}:${handle.port}\n`,
+  );
   await waitForShutdown(handle);
 }
 
-function printBanner(handle: ServerHandle, network: string): void {
-  // Stdout, not stderr: this is normal operation, and users may want to pipe
-  // the URL into curl/scripts. Errors and progress chatter still go to stderr.
+async function runDetached(opts: StartOptions): Promise<void> {
+  const result = await supervise({
+    network: opts.network,
+    host: opts.host,
+    port: opts.port,
+  });
   process.stdout.write(
-    `ASP network "${network}" listening on http://${handle.host}:${handle.port}\n`,
+    `ASP network "${opts.network}" started on http://${result.host}:${result.port} (pid ${result.pid})\n`,
   );
 }
 
 /**
  * Block on SIGINT/SIGTERM, then close the server and resolve. Once-only:
- * a second signal during shutdown forwards to the default handler so a stuck
- * close still lets the user Ctrl-C out.
+ * a second signal during shutdown re-raises so a stuck close still lets
+ * the user Ctrl-C out.
  */
 function waitForShutdown(handle: ServerHandle): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -92,10 +118,7 @@ function waitForShutdown(handle: ServerHandle): Promise<void> {
       }
       shuttingDown = true;
       process.stdout.write(`\nShutting down (received ${sig})\n`);
-      handle
-        .close()
-        .then(resolve)
-        .catch(reject);
+      handle.close().then(resolve).catch(reject);
     };
     process.once("SIGINT", onSignal);
     process.once("SIGTERM", onSignal);
@@ -105,7 +128,9 @@ function waitForShutdown(handle: ServerHandle): Promise<void> {
 function parsePort(raw: string): number {
   const n = Number(raw);
   if (!Number.isInteger(n) || n < 0 || n > 65535) {
-    throw new Error(`invalid port "${raw}" (expected an integer between 0 and 65535)`);
+    throw new Error(
+      `invalid port "${raw}" (expected an integer between 0 and 65535)`,
+    );
   }
   return n;
 }
