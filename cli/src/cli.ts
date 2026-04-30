@@ -1,6 +1,8 @@
 import { Command } from "commander";
 
+import { registerLogsCommand } from "./commands/logs.js";
 import { registerStartCommand } from "./commands/start.js";
+import { registerStatusCommand } from "./commands/status.js";
 import { PACKAGE_VERSION } from "./version.js";
 
 /**
@@ -22,8 +24,10 @@ export function buildProgram(): Command {
     .helpOption("-h, --help", "Show help");
 
   registerStartCommand(program);
+  registerStatusCommand(program);
+  registerLogsCommand(program);
   // Subcommands registered in subsequent phases:
-  //   phase 1.2 — `asp stop|status|logs` (supervised lifecycle)
+  //   phase 1.2 — `asp stop` (next commit)
   //   phase 1.3 — `asp agent ...`
   //   phase 1.4 — `asp session ...`
   //   phase 1.5 — `asp permission ...`, `asp contact ...`, `asp listen`
