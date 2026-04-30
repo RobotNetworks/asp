@@ -1,19 +1,15 @@
 import { createWriteStream, type WriteStream } from "node:fs";
-import { mkdir, unlink, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 
 import {
   networkPaths,
   resolveStateRoot,
   type NetworkPaths,
 } from "../paths.js";
-import {
-  readRegistry,
-  removeEntry,
-  upsertEntry,
-  writeRegistry,
-} from "../registry.js";
+import { readRegistry, upsertEntry, writeRegistry } from "../registry.js";
 import { buildApp } from "../server/app.js";
 import { startServer, type ServerHandle } from "../server/runtime.js";
+import { clearRegistration } from "./state.js";
 import { PACKAGE_VERSION } from "../version.js";
 
 export interface RunSupervisedChildOptions {
@@ -61,7 +57,7 @@ export async function runSupervisedChild(
   log.write(`[${new Date().toISOString()}] received ${signal}, shutting down\n`);
 
   await handle.close();
-  await retract(stateRoot, opts.network, paths);
+  await retract(stateRoot, opts.network);
   await new Promise<void>((resolve) => log.end(resolve));
 }
 
@@ -100,28 +96,16 @@ async function publishState(
   );
 }
 
-async function retract(
-  stateRoot: string,
-  name: string,
-  paths: NetworkPaths,
-): Promise<void> {
-  // Best-effort: a partial cleanup is better than a crashed cleanup. The
-  // next `asp start` will detect any leftover state via PID liveness.
+async function retract(stateRoot: string, name: string): Promise<void> {
+  // Best-effort during shutdown: stale state is a recoverable annoyance,
+  // not a fatal one. The next `asp start` reaps anything left behind.
+  // network.json is intentionally left on disk as a last-known-state
+  // record for post-mortem inspection.
   try {
-    const reg = await readRegistry(stateRoot);
-    await writeRegistry(stateRoot, removeEntry(reg, name));
+    await clearRegistration(stateRoot, name);
   } catch {
-    /* registry stale; will be reaped by the next start */
+    /* tolerated */
   }
-  try {
-    await unlink(paths.pidFile);
-  } catch (err: unknown) {
-    if (!isErrnoNotFound(err)) {
-      // swallow — logging here is not critical, the file may already be gone
-    }
-  }
-  // Leave network.json on disk: useful as a last-known-state record for
-  // post-mortem inspection.
 }
 
 /**
@@ -165,9 +149,3 @@ function waitForSignal(): Promise<NodeJS.Signals> {
   });
 }
 
-function isErrnoNotFound(err: unknown): boolean {
-  return (
-    err instanceof Error &&
-    (err as NodeJS.ErrnoException).code === "ENOENT"
-  );
-}

@@ -1,9 +1,10 @@
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdir, unlink } from "node:fs/promises";
+import { mkdir } from "node:fs/promises";
 
 import { networkPaths, resolveStateRoot } from "../paths.js";
-import { readRegistry, removeEntry, writeRegistry } from "../registry.js";
+import { readRegistry } from "../registry.js";
 import { isProcessAlive } from "./liveness.js";
+import { clearRegistration } from "./state.js";
 
 export interface SuperviseOptions {
   readonly network: string;
@@ -124,22 +125,9 @@ async function ensureNotAlreadyRunning(
     );
   }
 
-  // Stale registry entry — the previous process is gone. Sweep it.
-  await writeRegistry(stateRoot, removeEntry(reg, name));
-  try {
-    await unlink(networkPaths(stateRoot, name).pidFile);
-  } catch (err: unknown) {
-    if (
-      !(
-        err instanceof Error &&
-        (err as NodeJS.ErrnoException).code === "ENOENT"
-      )
-    ) {
-      // Surface unexpected errors; an inaccessible state directory is a
-      // problem the user should know about before we continue.
-      throw err;
-    }
-  }
+  // Stale registry entry — the previous process is gone. Sweep it so this
+  // start can proceed.
+  await clearRegistration(stateRoot, name);
 }
 
 function readReadyMessage(
