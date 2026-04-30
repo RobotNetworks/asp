@@ -295,3 +295,92 @@ describe("PATCH /agents/:handle", () => {
     assert.equal(body.token, original.token);
   });
 });
+
+// ── POST /agents/:handle/allowlist ────────────────────────────────────────────
+
+describe("POST /agents/:handle/allowlist", () => {
+  it("adds entries to the allowlist", async () => {
+    const app = makeApp();
+    await app.request("/agents", {
+      method: "POST",
+      headers: { ...auth(), "Content-Type": "application/json" },
+      body: JSON.stringify({ handle: "@alice.bot" }),
+    });
+    const res = await app.request("/agents/@alice.bot/allowlist", {
+      method: "POST",
+      headers: { ...auth(), "Content-Type": "application/json" },
+      body: JSON.stringify({ entries: ["@bob.bot", "@acme.*"] }),
+    });
+    assert.equal(res.status, 200);
+    const body = (await json(res)) as { allowlist: string[] };
+    assert.deepEqual(body.allowlist, ["@bob.bot", "@acme.*"]);
+  });
+
+  it("returns 404 for an unknown agent", async () => {
+    const app = makeApp();
+    const res = await app.request("/agents/@ghost.bot/allowlist", {
+      method: "POST",
+      headers: { ...auth(), "Content-Type": "application/json" },
+      body: JSON.stringify({ entries: ["@bob.bot"] }),
+    });
+    assert.equal(res.status, 404);
+  });
+
+  it("returns 400 for invalid entries", async () => {
+    const app = makeApp();
+    await app.request("/agents", {
+      method: "POST",
+      headers: { ...auth(), "Content-Type": "application/json" },
+      body: JSON.stringify({ handle: "@alice.bot" }),
+    });
+    const res = await app.request("/agents/@alice.bot/allowlist", {
+      method: "POST",
+      headers: { ...auth(), "Content-Type": "application/json" },
+      body: JSON.stringify({ entries: ["not-a-handle"] }),
+    });
+    assert.equal(res.status, 400);
+  });
+});
+
+// ── DELETE /agents/:handle/allowlist/:entry ───────────────────────────────────
+
+describe("DELETE /agents/:handle/allowlist/:entry", () => {
+  it("removes an entry from the allowlist", async () => {
+    const store = new InMemoryAgentStore();
+    store.register("@alice.bot");
+    store.addToAllowlist("@alice.bot", ["@bob.bot", "@carol.bot"]);
+    const app = buildAdminApp(store, TOKEN);
+    const res = await app.request(
+      "/agents/@alice.bot/allowlist/%40bob.bot",
+      { method: "DELETE", headers: auth() },
+    );
+    assert.equal(res.status, 200);
+    const body = (await json(res)) as { allowlist: string[] };
+    assert.deepEqual(body.allowlist, ["@carol.bot"]);
+  });
+
+  it("is idempotent when the entry does not exist", async () => {
+    const app = makeApp();
+    await app.request("/agents", {
+      method: "POST",
+      headers: { ...auth(), "Content-Type": "application/json" },
+      body: JSON.stringify({ handle: "@alice.bot" }),
+    });
+    const res = await app.request(
+      "/agents/@alice.bot/allowlist/%40ghost.bot",
+      { method: "DELETE", headers: auth() },
+    );
+    assert.equal(res.status, 200);
+    const body = (await json(res)) as { allowlist: string[] };
+    assert.deepEqual(body.allowlist, []);
+  });
+
+  it("returns 404 for an unknown agent", async () => {
+    const app = makeApp();
+    const res = await app.request(
+      "/agents/@ghost.bot/allowlist/%40bob.bot",
+      { method: "DELETE", headers: auth() },
+    );
+    assert.equal(res.status, 404);
+  });
+});

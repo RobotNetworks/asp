@@ -139,6 +139,36 @@ describe("AdminClient", () => {
     const dead = new AdminClient("http://127.0.0.1:1", ADMIN_TOKEN);
     await assert.rejects(dead.listAgents(), /could not reach network/);
   });
+
+  it("addToAllowlist adds entries to the agent's allowlist", async () => {
+    await client.registerAgent("@alice.bot");
+    const updated = await client.addToAllowlist("@alice.bot", [
+      "@bob.bot",
+      "@acme.*",
+    ]);
+    assert.deepEqual([...updated.allowlist], ["@bob.bot", "@acme.*"]);
+  });
+
+  it("addToAllowlist throws AdminApiError(404) for an unknown handle", async () => {
+    await assert.rejects(
+      client.addToAllowlist("@ghost.bot", ["@bob.bot"]),
+      (err: unknown) => err instanceof AdminApiError && err.status === 404,
+    );
+  });
+
+  it("removeFromAllowlist removes an entry", async () => {
+    await client.registerAgent("@alice.bot");
+    await client.addToAllowlist("@alice.bot", ["@bob.bot", "@carol.bot"]);
+    const updated = await client.removeFromAllowlist("@alice.bot", "@bob.bot");
+    assert.deepEqual([...updated.allowlist], ["@carol.bot"]);
+  });
+
+  it("removeFromAllowlist throws AdminApiError(404) for an unknown handle", async () => {
+    await assert.rejects(
+      client.removeFromAllowlist("@ghost.bot", "@bob.bot"),
+      (err: unknown) => err instanceof AdminApiError && err.status === 404,
+    );
+  });
 });
 
 // ── connectAdmin ──────────────────────────────────────────────────────────────

@@ -89,6 +89,19 @@ export class AdminClient {
     );
   }
 
+  async addToAllowlist(handle: string, entries: string[]): Promise<AgentWire> {
+    return this.#post<AgentWire>(
+      `/agents/${encodeURIComponent(handle)}/allowlist`,
+      { entries },
+    );
+  }
+
+  async removeFromAllowlist(handle: string, entry: string): Promise<AgentWire> {
+    return this.#delete<AgentWire>(
+      `/agents/${encodeURIComponent(handle)}/allowlist/${encodeURIComponent(entry)}`,
+    );
+  }
+
   async #get<T>(path: string): Promise<T> {
     return this.#request<T>("GET", path);
   }
@@ -101,8 +114,8 @@ export class AdminClient {
     return this.#request<T>("PATCH", path, body);
   }
 
-  async #delete(path: string): Promise<void> {
-    await this.#request<null>("DELETE", path);
+  async #delete<T = null>(path: string): Promise<T> {
+    return this.#request<T>("DELETE", path);
   }
 
   async #request<T>(method: string, path: string, body?: unknown): Promise<T> {

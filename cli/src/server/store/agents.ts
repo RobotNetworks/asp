@@ -45,6 +45,17 @@ export interface AgentStore {
   rotateToken(handle: string): Agent | undefined;
   /** Update inbound policy. Returns the updated agent or undefined if absent. */
   setPolicy(handle: string, policy: Policy): Agent | undefined;
+  /**
+   * Add entries to the agent's allowlist. Skips duplicates. Returns the
+   * updated agent or undefined if the agent is absent.
+   */
+  addToAllowlist(handle: string, entries: readonly string[]): Agent | undefined;
+  /**
+   * Remove an entry from the agent's allowlist. Returns the updated agent or
+   * undefined if the agent is absent. Idempotent — no error if the entry is
+   * not present.
+   */
+  removeFromAllowlist(handle: string, entry: string): Agent | undefined;
 }
 
 export class AgentExistsError extends Error {
@@ -111,6 +122,29 @@ export class InMemoryAgentStore implements AgentStore {
     const old = this.#byHandle.get(handle);
     if (!old) return undefined;
     const next: Agent = { ...old, policy };
+    this.#byHandle.set(handle, next);
+    return next;
+  }
+
+  addToAllowlist(handle: string, entries: readonly string[]): Agent | undefined {
+    const old = this.#byHandle.get(handle);
+    if (!old) return undefined;
+    const existing = new Set(old.allowlist);
+    const next: Agent = {
+      ...old,
+      allowlist: [...old.allowlist, ...entries.filter((e) => !existing.has(e))],
+    };
+    this.#byHandle.set(handle, next);
+    return next;
+  }
+
+  removeFromAllowlist(handle: string, entry: string): Agent | undefined {
+    const old = this.#byHandle.get(handle);
+    if (!old) return undefined;
+    const next: Agent = {
+      ...old,
+      allowlist: old.allowlist.filter((e) => e !== entry),
+    };
     this.#byHandle.set(handle, next);
     return next;
   }

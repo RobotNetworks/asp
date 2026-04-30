@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 
-import { isValidHandle } from "../../handles.js";
+import { isValidAllowlistEntry, isValidHandle } from "../../handles.js";
 import {
   AgentExistsError,
   type Agent,
@@ -89,6 +89,25 @@ export function buildAdminAgentRoutes(store: AgentStore): Hono {
     return c.json(serializeAgent(agent));
   });
 
+  app.post("/agents/:handle/allowlist", async (c) => {
+    const handle = c.req.param("handle");
+    const body = await readJson(c);
+    if (body === undefined) return c.json({ error: "invalid_json" }, 400);
+    const parsed = parseAllowlistAdd(body);
+    if ("error" in parsed) return c.json({ error: parsed.error }, 400);
+    const agent = store.addToAllowlist(handle, parsed.entries);
+    if (!agent) return c.json({ error: "not_found" }, 404);
+    return c.json(serializeAgent(agent));
+  });
+
+  app.delete("/agents/:handle/allowlist/:entry", (c) => {
+    const handle = c.req.param("handle");
+    const entry = c.req.param("entry");
+    const agent = store.removeFromAllowlist(handle, entry);
+    if (!agent) return c.json({ error: "not_found" }, 404);
+    return c.json(serializeAgent(agent));
+  });
+
   return app;
 }
 
@@ -138,6 +157,20 @@ function parsePatch(raw: unknown): PatchRequest | { error: string } {
     return { error: "invalid_policy" };
   }
   return policy === undefined ? {} : { policy };
+}
+
+interface AllowlistAddRequest {
+  readonly entries: readonly string[];
+}
+
+function parseAllowlistAdd(raw: unknown): AllowlistAddRequest | { error: string } {
+  if (!isPlainObject(raw)) return { error: "invalid_body" };
+  const entries = raw["entries"];
+  if (!Array.isArray(entries)) return { error: "invalid_entries" };
+  for (const e of entries) {
+    if (!isValidAllowlistEntry(e)) return { error: "invalid_entries" };
+  }
+  return { entries: entries as string[] };
 }
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {

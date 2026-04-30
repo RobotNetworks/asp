@@ -124,4 +124,41 @@ describe("InMemoryAgentStore", () => {
     store.remove("@alice.bot");
     assert.doesNotThrow(() => store.register("@alice.bot"));
   });
+
+  it("addToAllowlist adds entries and deduplicates", () => {
+    const store = new InMemoryAgentStore();
+    store.register("@alice.bot");
+    store.addToAllowlist("@alice.bot", ["@bob.bot"]);
+    store.addToAllowlist("@alice.bot", ["@bob.bot", "@carol.bot"]);
+    const agent = store.get("@alice.bot")!;
+    assert.deepEqual([...agent.allowlist], ["@bob.bot", "@carol.bot"]);
+  });
+
+  it("addToAllowlist returns undefined for unknown handle", () => {
+    const store = new InMemoryAgentStore();
+    assert.equal(store.addToAllowlist("@ghost.bot", ["@bob.bot"]), undefined);
+  });
+
+  it("removeFromAllowlist removes an entry", () => {
+    const store = new InMemoryAgentStore();
+    store.register("@alice.bot");
+    store.addToAllowlist("@alice.bot", ["@bob.bot", "@carol.bot"]);
+    store.removeFromAllowlist("@alice.bot", "@bob.bot");
+    const agent = store.get("@alice.bot")!;
+    assert.deepEqual([...agent.allowlist], ["@carol.bot"]);
+  });
+
+  it("removeFromAllowlist is idempotent when entry is absent", () => {
+    const store = new InMemoryAgentStore();
+    store.register("@alice.bot");
+    assert.doesNotThrow(() =>
+      store.removeFromAllowlist("@alice.bot", "@ghost.bot"),
+    );
+    assert.deepEqual([...store.get("@alice.bot")!.allowlist], []);
+  });
+
+  it("removeFromAllowlist returns undefined for unknown handle", () => {
+    const store = new InMemoryAgentStore();
+    assert.equal(store.removeFromAllowlist("@ghost.bot", "@bob.bot"), undefined);
+  });
 });
