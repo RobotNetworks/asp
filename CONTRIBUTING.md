@@ -41,9 +41,27 @@ The schema's `additionalProperties` posture matters here. Keep most objects stri
 
 Python: type-annotated, async where I/O is involved. Keep functions short. Comment the *why*, not the *what*. Service logic in `service.py`; storage shape in `store.py`; transport / fan-out in `transport.py`. The reference impl is also pedagogy — it should read cleanly.
 
+TypeScript (`cli/`): TypeScript strict mode with `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes`. ESM only. Same layering discipline as the Python reference — routes thin, business rules in services, persistence behind a repository. Comment the *why*, not the *what*.
+
 Schemas: JSON Schema 2020-12. Keep `$defs` flat and named. Prefer `allOf` envelope + `oneOf` discriminator over deeply nested unions.
 
 Conformance tests: each test should narrate exactly what spec invariant it asserts. Cite the section. Failure messages should help the implementer diagnose; "expected 404, got 200" is fine, "the privacy property in §6.2 was violated" is better.
+
+## Commit messages
+
+We use [Conventional Commits](https://www.conventionalcommits.org/). Each subject starts with a type, an optional scope, and an imperative summary:
+
+```
+feat(cli): add asp start lifecycle management
+fix(operator): respect grace window on reconnect
+docs(spec): clarify session reopen semantics
+```
+
+**Types:** `feat`, `fix`, `docs`, `test`, `refactor`, `perf`, `chore`, `ci`, `build`.
+
+**Scopes** name the area of the repo: `cli` (TypeScript reference at `cli/`), `operator` (Python reference at `examples/local-operator/`), `spec` (whitepaper), `schemas`, `conformance`, `drafts`, or omit the scope for repo-wide changes.
+
+A breaking spec or wire change adds a `!` after the type/scope (e.g. `feat(spec)!: ...`) and a `BREAKING CHANGE:` footer with migration notes.
 
 ## Reviews
 
