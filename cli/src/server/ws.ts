@@ -18,8 +18,11 @@ export class WSHub {
   readonly #wss: WebSocketServer;
   /** Map from agent handle → set of live WebSocket connections */
   readonly #connections = new Map<string, Set<WebSocket>>();
+  /** Admin tap connections receive every event regardless of recipient list */
+  readonly #adminConns = new Set<WebSocket>();
   #unsubscribe?: () => void;
   #agentStore?: AgentStore;
+  #adminToken: string | undefined = undefined;
 
   constructor() {
     this.#wss = new WebSocketServer({ noServer: true });
@@ -29,9 +32,13 @@ export class WSHub {
    * Attach the hub to the session store's event stream and set up the
    * WebSocket server's connection handler. Must be called before the first
    * upgrade request.
+   *
+   * Pass `adminToken` to enable the `/_admin/tap` endpoint; omit it to
+   * disable admin tap (useful for tests that don't need it).
    */
-  attach(agentStore: AgentStore, sessionStore: SessionStore): void {
+  attach(agentStore: AgentStore, sessionStore: SessionStore, adminToken?: string): void {
     this.#agentStore = agentStore;
+    this.#adminToken = adminToken;
 
     const observer: EventObserver = (event, recipients) => {
       this.#dispatch(event, recipients);
@@ -74,8 +81,34 @@ export class WSHub {
     });
   }
 
+  /**
+   * Handle an incoming HTTP upgrade request for `GET /_admin/tap`.
+   * Authenticates with the admin token, then adds the connection to the
+   * admin tap set so it receives all session events.
+   */
+  handleAdminUpgrade(req: IncomingMessage, socket: Socket, head: Buffer): void {
+    if (!this.#adminToken) {
+      socket.write("HTTP/1.1 501 Not Implemented\r\n\r\n");
+      socket.destroy();
+      return;
+    }
+    const token = extractToken(req);
+    if (token !== this.#adminToken) {
+      socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
+      socket.destroy();
+      return;
+    }
+    this.#wss.handleUpgrade(req, socket, head, (ws) => {
+      this.#adminConns.add(ws);
+      ws.on("close", () => this.#adminConns.delete(ws));
+      ws.on("error", () => this.#adminConns.delete(ws));
+    });
+  }
+
   close(): void {
     this.#unsubscribe?.();
+    for (const ws of this.#adminConns) ws.terminate();
+    this.#adminConns.clear();
     this.#wss.close();
   }
 
@@ -104,6 +137,11 @@ export class WSHub {
         if (ws.readyState === WebSocket.OPEN) {
           ws.send(frame);
         }
+      }
+    }
+    for (const ws of this.#adminConns) {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(frame);
       }
     }
   }

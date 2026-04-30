@@ -78,6 +78,23 @@ const MIGRATIONS: Array<{ version: number; sql: string }> = [
   },
 ];
 
+/**
+ * Truncate all application tables without dropping the schema. Used by the
+ * admin reset endpoint to wipe all agents, sessions, contacts, and events
+ * from a running network so it starts from a clean state.
+ */
+export function resetDatabase(db: DatabaseSync): void {
+  db.exec(`
+    BEGIN;
+    DELETE FROM session_events;
+    DELETE FROM participants;
+    DELETE FROM sessions;
+    DELETE FROM contacts;
+    DELETE FROM agents;
+    COMMIT;
+  `);
+}
+
 function applyMigrations(db: DatabaseSync): void {
   const current = (db.prepare("PRAGMA user_version").get() as { user_version: number }).user_version;
   const pending = MIGRATIONS.filter((m) => m.version > current);

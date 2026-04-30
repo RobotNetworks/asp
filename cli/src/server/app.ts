@@ -22,6 +22,12 @@ export interface AppContext {
   readonly contactStore: ContactStore;
   /** Bearer token guarding the `/_admin/...` management routes. */
   readonly adminToken: string;
+  /**
+   * If provided, the admin `POST /_admin/reset` endpoint is enabled and calls
+   * this function to wipe all network state. Only wired up when backed by
+   * a durable store (SQLite); omitted for in-memory (tests, embedders).
+   */
+  readonly resetFn?: () => void;
 }
 
 /**
@@ -45,7 +51,7 @@ export function buildApp(ctx: AppContext): Hono {
     }),
   );
 
-  app.route("/_admin", buildAdminApp(ctx.store, ctx.adminToken));
+  app.route("/_admin", buildAdminApp(ctx.store, ctx.adminToken, ctx.resetFn));
   app.route("/sessions", buildSessionRoutes(ctx.store, ctx.sessionStore));
   app.route("/contacts", buildContactRoutes(ctx.store, ctx.contactStore));
 

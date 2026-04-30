@@ -15,9 +15,17 @@ import { makeAdminAuth } from "./auth.js";
 export function buildAdminApp(
   store: AgentStore,
   adminToken: string,
+  resetFn?: () => void,
 ): Hono {
   const app = new Hono();
   app.use("*", makeAdminAuth(adminToken));
   app.route("/", buildAdminAgentRoutes(store));
+  if (resetFn) {
+    const fn = resetFn;
+    app.post("/reset", (c) => {
+      fn();
+      return c.body(null, 204);
+    });
+  }
   return app;
 }

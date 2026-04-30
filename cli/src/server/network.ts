@@ -9,7 +9,7 @@ import {
 import { buildApp } from "./app.js";
 import { startServer, type ServerHandle } from "./runtime.js";
 import { type AgentStore } from "./store/agents.js";
-import { openDatabase } from "./store/sqlite.js";
+import { openDatabase, resetDatabase } from "./store/sqlite.js";
 import { SqliteAgentStore } from "./store/sqlite-agents.js";
 import { SqliteContactStore } from "./store/sqlite-contacts.js";
 import { SqliteSessionStore } from "./store/sqlite-sessions.js";
@@ -59,9 +59,9 @@ export async function startNetwork(
   const sessionStore = new SqliteSessionStore(db);
   const contactStore = new SqliteContactStore(db);
   const wsHub = new WSHub();
-  wsHub.attach(store, sessionStore);
+  wsHub.attach(store, sessionStore, adminToken);
   const handle = await startServer({
-    app: buildApp({ network: opts.network, store, sessionStore, contactStore, adminToken }),
+    app: buildApp({ network: opts.network, store, sessionStore, contactStore, adminToken, resetFn: () => resetDatabase(db) }),
     host: opts.host,
     port: opts.port,
     wsHub,

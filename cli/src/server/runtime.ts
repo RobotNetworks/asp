@@ -48,6 +48,8 @@ export function startServer(opts: StartServerOptions): Promise<ServerHandle> {
             const path = url.split("?")[0];
             if (path === "/connect") {
               hub.handleUpgrade(req, socket as import("net").Socket, head);
+            } else if (path === "/_admin/tap") {
+              hub.handleAdminUpgrade(req, socket as import("net").Socket, head);
             } else {
               socket.destroy();
             }

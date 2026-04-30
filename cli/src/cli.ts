@@ -5,6 +5,9 @@ import { registerContactCommand } from "./commands/contact.js";
 import { registerListenCommand } from "./commands/listen.js";
 import { registerLogsCommand } from "./commands/logs.js";
 import { registerPermissionCommand } from "./commands/permission.js";
+import { registerResetCommand } from "./commands/reset.js";
+import { registerSeedCommand } from "./commands/seed.js";
+import { registerTapCommand } from "./commands/tap.js";
 import { registerSessionCommand } from "./commands/session.js";
 import { registerStartCommand } from "./commands/start.js";
 import { registerStatusCommand } from "./commands/status.js";
@@ -38,11 +41,11 @@ export function buildProgram(): Command {
   registerSessionCommand(program);
   registerContactCommand(program);
   registerListenCommand(program);
+  registerResetCommand(program);
+  registerSeedCommand(program);
+  registerTapCommand(program);
   // Subcommands registered in subsequent phases:
-  //   phase 4 — `asp tap`, `asp seed`, `asp reset`
   //   phase 5 — `asp identity ...`
-  //   phase 4   — `asp tap`, `asp seed`, `asp reset`
-  //   phase 5   — `asp identity ...`
 
   return program;
 }

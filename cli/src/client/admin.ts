@@ -102,6 +102,21 @@ export class AdminClient {
     );
   }
 
+  /** Wipe all agents, sessions, and contacts from the network. */
+  async reset(): Promise<void> {
+    await this.#post<null>("/reset", undefined);
+  }
+
+  /** WebSocket URL for the admin event-tap endpoint. */
+  get tapWsUrl(): string {
+    return this.#baseUrl.replace(/^http/, "ws") + "/_admin/tap";
+  }
+
+  /** The admin bearer token (used to authenticate the tap WebSocket). */
+  get token(): string {
+    return this.#token;
+  }
+
   async #get<T>(path: string): Promise<T> {
     return this.#request<T>("GET", path);
   }
