@@ -8,9 +8,11 @@ import {
 } from "../paths.js";
 import { buildApp } from "./app.js";
 import { startServer, type ServerHandle } from "./runtime.js";
-import { InMemoryAgentStore, type AgentStore } from "./store/agents.js";
-import { InMemoryContactStore } from "./store/contacts.js";
-import { InMemorySessionStore } from "./store/sessions.js";
+import { type AgentStore } from "./store/agents.js";
+import { openDatabase } from "./store/sqlite.js";
+import { SqliteAgentStore } from "./store/sqlite-agents.js";
+import { SqliteContactStore } from "./store/sqlite-contacts.js";
+import { SqliteSessionStore } from "./store/sqlite-sessions.js";
 import { WSHub } from "./ws.js";
 
 export interface StartNetworkOptions {
@@ -52,9 +54,10 @@ export async function startNetwork(
   const adminToken = randomBytes(32).toString("base64url");
   await writeFile(paths.adminTokenFile, `${adminToken}\n`, { mode: 0o600 });
 
-  const store = new InMemoryAgentStore();
-  const sessionStore = new InMemorySessionStore();
-  const contactStore = new InMemoryContactStore();
+  const db = openDatabase(paths.sqlite);
+  const store = new SqliteAgentStore(db);
+  const sessionStore = new SqliteSessionStore(db);
+  const contactStore = new SqliteContactStore(db);
   const wsHub = new WSHub();
   wsHub.attach(store, sessionStore);
   const handle = await startServer({
@@ -72,6 +75,7 @@ export async function startNetwork(
     close: async () => {
       wsHub.close();
       await handle.close();
+      db.close();
       try {
         await unlink(paths.adminTokenFile);
       } catch (err: unknown) {
