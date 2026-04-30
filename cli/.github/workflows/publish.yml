@@ -1,0 +1,34 @@
+name: cli publish
+
+on:
+  push:
+    tags:
+      - "cli-v*"
+
+defaults:
+  run:
+    working-directory: cli
+
+jobs:
+  publish:
+    name: publish to npm
+    runs-on: ubuntu-latest
+    permissions:
+      # Required for npm provenance: the action mints a short-lived OIDC token
+      # that npm uses to attest the build came from this exact workflow run.
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+          cache: npm
+          cache-dependency-path: cli/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

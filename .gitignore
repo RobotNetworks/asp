@@ -11,12 +11,19 @@ dist/
 venv/
 env/
 
+# Node
+node_modules/
+*.tgz
+npm-debug.log*
+
 # Test / tooling caches
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
 .coverage
 htmlcov/
+coverage/
+.nyc_output/
 
 # Editor / OS
 .DS_Store
