@@ -76,6 +76,16 @@ export class SessionClient {
     this.#token = token;
   }
 
+  /** The WebSocket URL for the `/connect` event stream endpoint. */
+  get wsUrl(): string {
+    return this.#baseUrl.replace(/^http/, "ws") + "/connect";
+  }
+
+  /** The agent's bearer token (needed for WS auth). */
+  get token(): string {
+    return this.#token;
+  }
+
   async createSession(opts: {
     invite?: string[];
     topic?: string;

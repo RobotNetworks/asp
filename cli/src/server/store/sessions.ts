@@ -101,6 +101,13 @@ export interface GetEventsOpts {
   readonly limit?: number;
 }
 
+/**
+ * Called after each event is appended, with the event and the set of agent
+ * handles that should receive it in real-time (per §6.4 visibility rules).
+ * Used by the WebSocket hub to fan events to connected clients.
+ */
+export type EventObserver = (event: StoredEvent, recipients: readonly string[]) => void;
+
 export interface SessionStore {
   create(opts: CreateSessionOpts): CreateSessionResult;
   join(sessionId: string, joiner: string): Session;
@@ -112,6 +119,8 @@ export interface SessionStore {
   get(sessionId: string): Session | undefined;
   getEvents(sessionId: string, viewer: string, opts?: GetEventsOpts): StoredEvent[] | null;
   list(viewer: string): readonly Session[];
+  /** Register a one-time observer. Returns an unsubscribe function. */
+  subscribe(observer: EventObserver): () => void;
 }
 
 // ── Internal mutable representation ──────────────────────────────────────────
@@ -140,6 +149,12 @@ interface InternalSession {
 
 export class InMemorySessionStore implements SessionStore {
   readonly #sessions = new Map<string, InternalSession>();
+  readonly #observers = new Set<EventObserver>();
+
+  subscribe(observer: EventObserver): () => void {
+    this.#observers.add(observer);
+    return () => this.#observers.delete(observer);
+  }
 
   create(opts: CreateSessionOpts): CreateSessionResult {
     const now = Date.now();
@@ -457,6 +472,12 @@ export class InMemorySessionStore implements SessionStore {
       created_at: Date.now(),
     };
     sess.events.push(event);
+    if (this.#observers.size > 0) {
+      const recipients = liveRecipients(sess, event);
+      if (recipients.length > 0) {
+        for (const obs of this.#observers) obs(event, recipients);
+      }
+    }
     return event;
   }
 }
@@ -477,4 +498,30 @@ function snapshot(sess: InternalSession): Session {
     ...(sess.topic !== undefined ? { topic: sess.topic } : {}),
     ...(sess.endedAt !== undefined ? { ended_at: sess.endedAt } : {}),
   };
+}
+
+/**
+ * Compute the set of agent handles that should receive `event` in real-time,
+ * per §6.4 live delivery rules:
+ *   - joined participants receive every event
+ *   - invited participant receives their own session.invited + session.ended
+ *   - left participants receive nothing new
+ */
+function liveRecipients(sess: InternalSession, event: StoredEvent): string[] {
+  const recipients: string[] = [];
+  for (const p of sess.participants) {
+    if (p.status === "joined") {
+      recipients.push(p.handle);
+    } else if (p.status === "invited") {
+      if (
+        event.type === "session.ended" ||
+        (event.type === "session.invited" &&
+          (event.payload["invitee"] as string) === p.handle)
+      ) {
+        recipients.push(p.handle);
+      }
+    }
+    // left: never added
+  }
+  return recipients;
 }

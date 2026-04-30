@@ -1,6 +1,8 @@
 import { serve } from "@hono/node-server";
 import type { Hono } from "hono";
 
+import type { WSHub } from "./ws.js";
+
 /**
  * A running ASP server. Callers own the lifetime — the runtime does not
  * install signal handlers or print banners; that belongs to the CLI command
@@ -18,6 +20,9 @@ export interface StartServerOptions {
   readonly host: string;
   /** Pass 0 to ask the OS for an ephemeral port; the assigned port is on the returned handle. */
   readonly port: number;
+  /** Optional WebSocket hub. When provided, the server forwards HTTP upgrade
+   *  requests for the `/connect` path to the hub. */
+  readonly wsHub?: WSHub;
 }
 
 /**
@@ -33,6 +38,22 @@ export function startServer(opts: StartServerOptions): Promise<ServerHandle> {
       (info) => {
         if (settled) return;
         settled = true;
+
+        // Wire WebSocket upgrades for GET /connect if a hub is provided.
+        // The 'upgrade' event fires before Hono sees the request.
+        if (opts.wsHub) {
+          const hub = opts.wsHub;
+          server.on("upgrade", (req, socket, head) => {
+            const url = req.url ?? "";
+            const path = url.split("?")[0];
+            if (path === "/connect") {
+              hub.handleUpgrade(req, socket as import("net").Socket, head);
+            } else {
+              socket.destroy();
+            }
+          });
+        }
+
         resolve({
           host: info.address,
           port: info.port,

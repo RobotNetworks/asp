@@ -2,6 +2,7 @@ import { Command } from "commander";
 
 import { registerAgentCommand } from "./commands/agent.js";
 import { registerContactCommand } from "./commands/contact.js";
+import { registerListenCommand } from "./commands/listen.js";
 import { registerLogsCommand } from "./commands/logs.js";
 import { registerPermissionCommand } from "./commands/permission.js";
 import { registerSessionCommand } from "./commands/session.js";
@@ -36,8 +37,10 @@ export function buildProgram(): Command {
   registerPermissionCommand(program);
   registerSessionCommand(program);
   registerContactCommand(program);
+  registerListenCommand(program);
   // Subcommands registered in subsequent phases:
-  //   phase 1.5 — `asp listen`
+  //   phase 4 — `asp tap`, `asp seed`, `asp reset`
+  //   phase 5 — `asp identity ...`
   //   phase 4   — `asp tap`, `asp seed`, `asp reset`
   //   phase 5   — `asp identity ...`
 

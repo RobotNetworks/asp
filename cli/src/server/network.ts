@@ -11,6 +11,7 @@ import { startServer, type ServerHandle } from "./runtime.js";
 import { InMemoryAgentStore, type AgentStore } from "./store/agents.js";
 import { InMemoryContactStore } from "./store/contacts.js";
 import { InMemorySessionStore } from "./store/sessions.js";
+import { WSHub } from "./ws.js";
 
 export interface StartNetworkOptions {
   readonly network: string;
@@ -54,10 +55,13 @@ export async function startNetwork(
   const store = new InMemoryAgentStore();
   const sessionStore = new InMemorySessionStore();
   const contactStore = new InMemoryContactStore();
+  const wsHub = new WSHub();
+  wsHub.attach(store, sessionStore);
   const handle = await startServer({
     app: buildApp({ network: opts.network, store, sessionStore, contactStore, adminToken }),
     host: opts.host,
     port: opts.port,
+    wsHub,
   });
 
   return {
@@ -66,6 +70,7 @@ export async function startNetwork(
     adminToken,
     paths,
     close: async () => {
+      wsHub.close();
       await handle.close();
       try {
         await unlink(paths.adminTokenFile);
