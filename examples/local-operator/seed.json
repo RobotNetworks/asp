@@ -1,0 +1,10 @@
+{
+  "@alice.test": { "token": "tok_alice_local" },
+  "@bob.test": { "token": "tok_bob_local" },
+  "@carol.test": { "token": "tok_carol_local" },
+  "@closed.test": {
+    "token": "tok_closed_local",
+    "inbound_policy": "allowlist",
+    "allowlist": []
+  }
+}

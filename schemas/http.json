@@ -1,0 +1,276 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://asp.dev/schemas/http.json",
+  "title": "ASP HTTP request and response shapes",
+  "description": "Request and response bodies for the REST surface in Whitepaper Appendix C.1. Path parameters and query strings are documented inline. Draft.",
+
+  "$defs": {
+    "PostSessionsRequest": {
+      "title": "POST /sessions request body",
+      "description": "Per Whitepaper §6.3, a session is created with one participant (the creator) and zero or more invitees, so 'invite' is optional and may be empty.",
+      "type": "object",
+      "properties": {
+        "invite": {
+          "type": "array",
+          "items": { "$ref": "common.json#/$defs/Handle" }
+        },
+        "topic": { "type": "string" },
+        "initial_message": {
+          "description": "Optional first message bundled with session creation. Delivered as session.message to the creator and (when end_after_send is true) inline on session.invited to invitees.",
+          "type": "object",
+          "required": ["content"],
+          "properties": {
+            "content": { "$ref": "common.json#/$defs/Content" },
+            "metadata": { "$ref": "common.json#/$defs/Metadata" }
+          },
+          "additionalProperties": false
+        },
+        "end_after_send": {
+          "description": "When true, the session ends immediately after the initial_message is delivered. The session.invited event carries initial_message inline (Whitepaper §6.3, §7.2). Requires initial_message.",
+          "type": "boolean"
+        },
+        "idempotency_key": { "$ref": "common.json#/$defs/IdempotencyKey" }
+      },
+      "additionalProperties": false,
+      "if": {
+        "properties": { "end_after_send": { "const": true } },
+        "required": ["end_after_send"]
+      },
+      "then": {
+        "required": ["initial_message"]
+      }
+    },
+
+    "PostSessionsResponse": {
+      "title": "POST /sessions response",
+      "type": "object",
+      "required": ["session_id"],
+      "properties": {
+        "session_id": { "$ref": "common.json#/$defs/SessionId" },
+        "sequence": {
+          "description": "Sequence of the initial_message, if one was sent.",
+          "$ref": "common.json#/$defs/Sequence"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "PostSessionsJoinRequest": {
+      "title": "POST /sessions/{id}/join request body",
+      "type": "object",
+      "additionalProperties": false
+    },
+
+    "PostSessionsJoinResponse": {
+      "title": "POST /sessions/{id}/join response",
+      "type": "object",
+      "required": ["ok"],
+      "properties": { "ok": { "const": true } },
+      "additionalProperties": false
+    },
+
+    "PostSessionsInviteRequest": {
+      "title": "POST /sessions/{id}/invite request body",
+      "type": "object",
+      "required": ["invite"],
+      "properties": {
+        "invite": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "common.json#/$defs/Handle" }
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "PostSessionsInviteResponse": {
+      "title": "POST /sessions/{id}/invite response",
+      "description": "invited contains the subset of requested handles whose trust policy allows the invitation to be sent. Per §6.2, denials are not enumerable — handles that refuse contact are silently omitted (404 semantics for the recipient view).",
+      "type": "object",
+      "required": ["invited"],
+      "properties": {
+        "invited": {
+          "type": "array",
+          "items": { "$ref": "common.json#/$defs/Handle" }
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "PostSessionsMessagesRequest": {
+      "title": "POST /sessions/{id}/messages request body",
+      "type": "object",
+      "required": ["content"],
+      "properties": {
+        "content": { "$ref": "common.json#/$defs/Content" },
+        "idempotency_key": { "$ref": "common.json#/$defs/IdempotencyKey" },
+        "metadata": { "$ref": "common.json#/$defs/Metadata" }
+      },
+      "additionalProperties": false
+    },
+
+    "PostSessionsMessagesResponse": {
+      "title": "POST /sessions/{id}/messages response",
+      "type": "object",
+      "required": ["message_id", "sequence"],
+      "properties": {
+        "message_id": { "$ref": "common.json#/$defs/MessageId" },
+        "sequence": { "$ref": "common.json#/$defs/Sequence" }
+      },
+      "additionalProperties": false
+    },
+
+    "PostSessionsLeaveRequest": {
+      "title": "POST /sessions/{id}/leave request body",
+      "type": "object",
+      "additionalProperties": false
+    },
+
+    "PostSessionsLeaveResponse": {
+      "title": "POST /sessions/{id}/leave response",
+      "type": "object",
+      "required": ["ok"],
+      "properties": { "ok": { "const": true } },
+      "additionalProperties": false
+    },
+
+    "PostSessionsEndRequest": {
+      "title": "POST /sessions/{id}/end request body",
+      "type": "object",
+      "additionalProperties": false
+    },
+
+    "PostSessionsEndResponse": {
+      "title": "POST /sessions/{id}/end response",
+      "type": "object",
+      "required": ["ok"],
+      "properties": { "ok": { "const": true } },
+      "additionalProperties": false
+    },
+
+    "PostSessionsReopenRequest": {
+      "title": "POST /sessions/{id}/reopen request body",
+      "type": "object",
+      "properties": {
+        "invite": {
+          "type": "array",
+          "items": { "$ref": "common.json#/$defs/Handle" }
+        },
+        "initial_message": {
+          "type": "object",
+          "required": ["content"],
+          "properties": {
+            "content": { "$ref": "common.json#/$defs/Content" },
+            "metadata": { "$ref": "common.json#/$defs/Metadata" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "PostSessionsReopenResponse": {
+      "title": "POST /sessions/{id}/reopen response",
+      "type": "object",
+      "required": ["ok"],
+      "properties": { "ok": { "const": true } },
+      "additionalProperties": false
+    },
+
+    "GetSessionResponse": {
+      "title": "GET /sessions/{id} response",
+      "description": "Caller must be a current or former participant (Whitepaper Appendix C.1).",
+      "type": "object",
+      "required": ["id", "state", "participants", "created_at"],
+      "properties": {
+        "id": { "$ref": "common.json#/$defs/SessionId" },
+        "state": { "$ref": "common.json#/$defs/SessionState" },
+        "topic": { "type": "string" },
+        "participants": {
+          "type": "array",
+          "items": { "$ref": "common.json#/$defs/Participant" }
+        },
+        "created_at": { "$ref": "common.json#/$defs/Timestamp" },
+        "ended_at": { "$ref": "common.json#/$defs/Timestamp" }
+      },
+      "additionalProperties": false
+    },
+
+    "GetSessionEventsQuery": {
+      "title": "GET /sessions/{id}/events query parameters",
+      "type": "object",
+      "properties": {
+        "after_sequence": { "$ref": "common.json#/$defs/Sequence" },
+        "limit": { "type": "integer", "minimum": 1, "maximum": 1000 }
+      },
+      "additionalProperties": false
+    },
+
+    "GetSessionEventsResponse": {
+      "title": "GET /sessions/{id}/events response",
+      "description": "Eligibility follows live-delivery rules (Whitepaper §6.4): joined participants get all events; invited get only session.invited (and session.ended); left get nothing past their session.left.",
+      "type": "object",
+      "required": ["events"],
+      "properties": {
+        "events": {
+          "type": "array",
+          "items": { "$ref": "events.json#" }
+        },
+        "next_cursor": {
+          "description": "Opaque cursor for the next page, when more events exist beyond the returned set.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "PostContactsRequest": {
+      "title": "POST /contacts request body",
+      "type": "object",
+      "required": ["to"],
+      "properties": {
+        "to": { "$ref": "common.json#/$defs/Handle" },
+        "message": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+
+    "PostContactsResponse": {
+      "title": "POST /contacts response",
+      "type": "object",
+      "required": ["request_id"],
+      "properties": {
+        "request_id": { "$ref": "common.json#/$defs/ContactRequestId" }
+      },
+      "additionalProperties": false
+    },
+
+    "PostContactsAcceptRequest": {
+      "title": "POST /contacts/{request_id}/accept request body",
+      "type": "object",
+      "additionalProperties": false
+    },
+
+    "PostContactsAcceptResponse": {
+      "title": "POST /contacts/{request_id}/accept response",
+      "type": "object",
+      "required": ["ok"],
+      "properties": { "ok": { "const": true } },
+      "additionalProperties": false
+    },
+
+    "PostContactsDeclineRequest": {
+      "title": "POST /contacts/{request_id}/decline request body",
+      "type": "object",
+      "additionalProperties": false
+    },
+
+    "PostContactsDeclineResponse": {
+      "title": "POST /contacts/{request_id}/decline response",
+      "type": "object",
+      "required": ["ok"],
+      "properties": { "ok": { "const": true } },
+      "additionalProperties": false
+    }
+  }
+}

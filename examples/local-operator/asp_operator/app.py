@@ -1,0 +1,283 @@
+"""FastAPI app: HTTP routes and the WS /connect endpoint."""
+
+from __future__ import annotations
+
+import asyncio
+import json
+from typing import Any
+
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
+
+from .service import (
+    Conflict,
+    NotAllowed,
+    NotFound,
+    Service,
+    TrustDenied,
+)
+from .store import Store
+from .transport import Transport
+
+
+# ---------------------------------------------------------------------------
+# Request models
+# ---------------------------------------------------------------------------
+
+
+class InitialMessage(BaseModel):
+    content: Any
+    metadata: dict | None = None
+
+
+class CreateSessionBody(BaseModel):
+    invite: list[str] = Field(default_factory=list)
+    topic: str | None = None
+    initial_message: InitialMessage | None = None
+    end_after_send: bool = False
+    idempotency_key: str | None = None
+
+
+class InviteBody(BaseModel):
+    invite: list[str]
+
+
+class SendMessageBody(BaseModel):
+    content: Any
+    idempotency_key: str | None = None
+    metadata: dict | None = None
+
+
+class ReopenBody(BaseModel):
+    invite: list[str] | None = None
+    initial_message: InitialMessage | None = None
+
+
+class ContactBody(BaseModel):
+    to: str
+    message: str | None = None
+
+
+# ---------------------------------------------------------------------------
+# App factory
+# ---------------------------------------------------------------------------
+
+
+def create_app(seed: dict[str, str]) -> FastAPI:
+    app = FastAPI(title="ASP local operator", version="0.1.0")
+
+    store = Store()
+    store.seed_agents(seed)
+    transport = Transport(store)
+    service = Service(store, transport)
+
+    # ---- Auth helper ---------------------------------------------------
+
+    def auth_handle(request: Request) -> str:
+        auth_header = request.headers.get("authorization", "")
+        agent_header = request.headers.get("x-asp-agent", "")
+        if not auth_header.startswith("Bearer ") or not agent_header:
+            raise HTTPException(status_code=401, detail="missing credentials")
+        token = auth_header.removeprefix("Bearer ")
+        if store.authenticate(agent_header, token) is None:
+            raise HTTPException(status_code=401, detail="invalid credentials")
+        return agent_header
+
+    # ---- Sessions ------------------------------------------------------
+
+    @app.post("/sessions")
+    async def post_sessions(body: CreateSessionBody, request: Request):
+        creator = auth_handle(request)
+        if body.end_after_send and body.initial_message is None:
+            raise HTTPException(
+                status_code=400,
+                detail="end_after_send requires initial_message",
+            )
+        try:
+            result = await service.create_session(
+                creator=creator,
+                invite=body.invite,
+                topic=body.topic,
+                initial_message=body.initial_message.model_dump(exclude_none=True)
+                if body.initial_message is not None
+                else None,
+                end_after_send=body.end_after_send,
+            )
+        except TrustDenied:
+            raise HTTPException(status_code=404, detail="not found")
+        out: dict[str, Any] = {"session_id": result.session_id}
+        if result.sequence is not None:
+            out["sequence"] = result.sequence
+        return out
+
+    @app.post("/sessions/{session_id}/join")
+    async def post_join(session_id: str, request: Request):
+        handle = auth_handle(request)
+        try:
+            await service.join(handle, session_id)
+        except NotFound:
+            raise HTTPException(status_code=404, detail="not found")
+        except Conflict as e:
+            raise HTTPException(status_code=409, detail=str(e))
+        except NotAllowed:
+            raise HTTPException(status_code=404, detail="not found")
+        return {"ok": True}
+
+    @app.post("/sessions/{session_id}/invite")
+    async def post_invite(session_id: str, body: InviteBody, request: Request):
+        caller = auth_handle(request)
+        try:
+            invited = await service.invite(caller, session_id, body.invite)
+        except NotFound:
+            raise HTTPException(status_code=404, detail="not found")
+        except NotAllowed:
+            raise HTTPException(status_code=404, detail="not found")
+        return {"invited": invited}
+
+    @app.post("/sessions/{session_id}/messages")
+    async def post_message(session_id: str, body: SendMessageBody, request: Request):
+        sender = auth_handle(request)
+        try:
+            result = await service.send_message(
+                sender,
+                session_id,
+                body.content,
+                body.idempotency_key,
+                body.metadata,
+            )
+        except NotFound:
+            raise HTTPException(status_code=404, detail="not found")
+        except Conflict as e:
+            raise HTTPException(status_code=409, detail=str(e))
+        except NotAllowed:
+            raise HTTPException(status_code=404, detail="not found")
+        return {"message_id": result.message_id, "sequence": result.sequence}
+
+    @app.post("/sessions/{session_id}/leave")
+    async def post_leave(session_id: str, request: Request):
+        handle = auth_handle(request)
+        try:
+            await service.leave(handle, session_id)
+        except NotFound:
+            raise HTTPException(status_code=404, detail="not found")
+        except Conflict as e:
+            raise HTTPException(status_code=409, detail=str(e))
+        except NotAllowed:
+            raise HTTPException(status_code=404, detail="not found")
+        return {"ok": True}
+
+    @app.post("/sessions/{session_id}/end")
+    async def post_end(session_id: str, request: Request):
+        handle = auth_handle(request)
+        try:
+            await service.end(handle, session_id)
+        except NotFound:
+            raise HTTPException(status_code=404, detail="not found")
+        except Conflict as e:
+            raise HTTPException(status_code=409, detail=str(e))
+        except NotAllowed:
+            raise HTTPException(status_code=404, detail="not found")
+        return {"ok": True}
+
+    @app.post("/sessions/{session_id}/reopen")
+    async def post_reopen(session_id: str, body: ReopenBody, request: Request):
+        handle = auth_handle(request)
+        try:
+            await service.reopen(
+                handle,
+                session_id,
+                body.invite,
+                body.initial_message.model_dump(exclude_none=True)
+                if body.initial_message is not None
+                else None,
+            )
+        except NotFound:
+            raise HTTPException(status_code=404, detail="not found")
+        except Conflict as e:
+            raise HTTPException(status_code=409, detail=str(e))
+        except NotAllowed:
+            raise HTTPException(status_code=404, detail="not found")
+        return {"ok": True}
+
+    @app.get("/sessions/{session_id}")
+    async def get_session(session_id: str, request: Request):
+        caller = auth_handle(request)
+        try:
+            return service.get_session_view(caller, session_id)
+        except NotFound:
+            raise HTTPException(status_code=404, detail="not found")
+
+    @app.get("/sessions/{session_id}/events")
+    async def get_session_events(
+        session_id: str,
+        request: Request,
+        after_sequence: int | None = None,
+        limit: int | None = None,
+    ):
+        caller = auth_handle(request)
+        try:
+            events = service.get_events_for(caller, session_id, after_sequence, limit)
+        except NotFound:
+            raise HTTPException(status_code=404, detail="not found")
+        return {"events": events}
+
+    # ---- Contacts ------------------------------------------------------
+
+    @app.post("/contacts")
+    async def post_contact(body: ContactBody, request: Request):
+        sender = auth_handle(request)
+        try:
+            request_id = await service.request_contact(sender, body.to, body.message)
+        except NotFound:
+            raise HTTPException(status_code=404, detail="not found")
+        return {"request_id": request_id}
+
+    @app.post("/contacts/{request_id}/accept")
+    async def post_contact_accept(request_id: str, request: Request):
+        caller = auth_handle(request)
+        try:
+            await service.accept_contact(caller, request_id)
+        except NotFound:
+            raise HTTPException(status_code=404, detail="not found")
+        except Conflict:
+            raise HTTPException(status_code=409, detail="not pending")
+        return {"ok": True}
+
+    @app.post("/contacts/{request_id}/decline")
+    async def post_contact_decline(request_id: str, request: Request):
+        caller = auth_handle(request)
+        try:
+            await service.decline_contact(caller, request_id)
+        except NotFound:
+            raise HTTPException(status_code=404, detail="not found")
+        except Conflict:
+            raise HTTPException(status_code=409, detail="not pending")
+        return {"ok": True}
+
+    # ---- WebSocket -----------------------------------------------------
+
+    @app.websocket("/connect")
+    async def ws_connect(ws: WebSocket):
+        # Headers come in via the upgrade request.
+        auth_header = ws.headers.get("authorization", "")
+        handle = ws.headers.get("x-asp-agent", "")
+        token = auth_header.removeprefix("Bearer ") if auth_header.startswith("Bearer ") else ""
+        if not handle or not token or store.authenticate(handle, token) is None:
+            await ws.close(code=1008)
+            return
+        await ws.accept()
+        await transport.connect(handle, ws)
+        try:
+            while True:
+                # Drain any inbound messages (operator does not interpret them).
+                await ws.receive_text()
+        except WebSocketDisconnect:
+            pass
+        except Exception:
+            pass
+        # Schedule cleanup as a background task so the close ACK isn't
+        # blocked behind session.disconnected fan-out.
+        asyncio.create_task(transport.disconnect(handle, ws))
+
+    return app

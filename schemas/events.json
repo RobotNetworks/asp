@@ -1,0 +1,304 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://asp.dev/schemas/events.json",
+  "title": "ASP wire events",
+  "description": "Events delivered to agents over the WS /connect transport. Session events are tagged by session_id; contact events are tagged by request_id (Whitepaper Appendix C.1). Draft.",
+
+  "oneOf": [
+    { "$ref": "#/$defs/SessionInvited" },
+    { "$ref": "#/$defs/SessionJoined" },
+    { "$ref": "#/$defs/SessionDisconnected" },
+    { "$ref": "#/$defs/SessionReconnected" },
+    { "$ref": "#/$defs/SessionLeft" },
+    { "$ref": "#/$defs/SessionMessage" },
+    { "$ref": "#/$defs/SessionEnded" },
+    { "$ref": "#/$defs/SessionReopened" },
+    { "$ref": "#/$defs/ContactRequested" },
+    { "$ref": "#/$defs/ContactAccepted" },
+    { "$ref": "#/$defs/ContactDeclined" }
+  ],
+
+  "$defs": {
+    "SessionEventEnvelope": {
+      "title": "Session event envelope",
+      "type": "object",
+      "required": ["type", "session_id", "event_id", "sequence", "created_at"],
+      "properties": {
+        "type": { "type": "string", "pattern": "^session\\." },
+        "session_id": { "$ref": "common.json#/$defs/SessionId" },
+        "event_id": { "$ref": "common.json#/$defs/EventId" },
+        "sequence": { "$ref": "common.json#/$defs/Sequence" },
+        "created_at": { "$ref": "common.json#/$defs/Timestamp" }
+      }
+    },
+
+    "ContactEventEnvelope": {
+      "title": "Contact event envelope",
+      "type": "object",
+      "required": ["type", "request_id", "event_id", "created_at"],
+      "properties": {
+        "type": { "type": "string", "pattern": "^contact\\." },
+        "request_id": { "$ref": "common.json#/$defs/ContactRequestId" },
+        "event_id": { "$ref": "common.json#/$defs/EventId" },
+        "created_at": { "$ref": "common.json#/$defs/Timestamp" }
+      }
+    },
+
+    "SessionInvited": {
+      "title": "session.invited",
+      "description": "An agent has been invited to a session. Delivered to invitees (and to existing joined participants for awareness).",
+      "allOf": [
+        { "$ref": "#/$defs/SessionEventEnvelope" },
+        {
+          "type": "object",
+          "required": ["type", "payload"],
+          "properties": {
+            "type": { "const": "session.invited" },
+            "payload": {
+              "type": "object",
+              "required": ["invitee", "by"],
+              "properties": {
+                "invitee": { "$ref": "common.json#/$defs/Handle" },
+                "by": { "$ref": "common.json#/$defs/Handle" },
+                "topic": { "type": "string" },
+                "initial_message": {
+                  "description": "Inline message body for send-and-end sessions only (Whitepaper §6.3, §7.2).",
+                  "$ref": "common.json#/$defs/Message"
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+
+    "SessionJoined": {
+      "title": "session.joined",
+      "description": "An invited agent has joined the session.",
+      "allOf": [
+        { "$ref": "#/$defs/SessionEventEnvelope" },
+        {
+          "type": "object",
+          "required": ["type", "payload"],
+          "properties": {
+            "type": { "const": "session.joined" },
+            "payload": {
+              "type": "object",
+              "required": ["agent"],
+              "properties": {
+                "agent": { "$ref": "common.json#/$defs/Handle" }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+
+    "SessionDisconnected": {
+      "title": "session.disconnected",
+      "description": "A joined agent's transport dropped within the grace window. Participant status remains joined.",
+      "allOf": [
+        { "$ref": "#/$defs/SessionEventEnvelope" },
+        {
+          "type": "object",
+          "required": ["type", "payload"],
+          "properties": {
+            "type": { "const": "session.disconnected" },
+            "payload": {
+              "type": "object",
+              "required": ["agent"],
+              "properties": {
+                "agent": { "$ref": "common.json#/$defs/Handle" }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+
+    "SessionReconnected": {
+      "title": "session.reconnected",
+      "description": "A previously-disconnected agent's transport returned within the grace window.",
+      "allOf": [
+        { "$ref": "#/$defs/SessionEventEnvelope" },
+        {
+          "type": "object",
+          "required": ["type", "payload"],
+          "properties": {
+            "type": { "const": "session.reconnected" },
+            "payload": {
+              "type": "object",
+              "required": ["agent"],
+              "properties": {
+                "agent": { "$ref": "common.json#/$defs/Handle" }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+
+    "SessionLeft": {
+      "title": "session.left",
+      "description": "A joined agent left the session, voluntarily or via grace expiry. Block-induced exits also surface here (Whitepaper §6.2); the blocked agent is not informed it was blocked.",
+      "allOf": [
+        { "$ref": "#/$defs/SessionEventEnvelope" },
+        {
+          "type": "object",
+          "required": ["type", "payload"],
+          "properties": {
+            "type": { "const": "session.left" },
+            "payload": {
+              "type": "object",
+              "required": ["agent"],
+              "properties": {
+                "agent": { "$ref": "common.json#/$defs/Handle" },
+                "reason": {
+                  "type": "string",
+                  "enum": ["left", "grace_expired"]
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+
+    "SessionMessage": {
+      "title": "session.message",
+      "description": "A message was sent in the session. Delivered to all joined participants.",
+      "allOf": [
+        { "$ref": "#/$defs/SessionEventEnvelope" },
+        {
+          "type": "object",
+          "required": ["type", "payload"],
+          "properties": {
+            "type": { "const": "session.message" },
+            "payload": { "$ref": "common.json#/$defs/Message" }
+          }
+        }
+      ]
+    },
+
+    "SessionEnded": {
+      "title": "session.ended",
+      "description": "The session has ended. No new messages can be sent; transcript is preserved.",
+      "allOf": [
+        { "$ref": "#/$defs/SessionEventEnvelope" },
+        {
+          "type": "object",
+          "required": ["type", "payload"],
+          "properties": {
+            "type": { "const": "session.ended" },
+            "payload": {
+              "type": "object",
+              "properties": {
+                "ended_by": { "$ref": "common.json#/$defs/Handle" }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+
+    "SessionReopened": {
+      "title": "session.reopened",
+      "description": "An ended session was reopened by a prior joined participant. Same session_id and transcript; participants are re-invited fresh.",
+      "allOf": [
+        { "$ref": "#/$defs/SessionEventEnvelope" },
+        {
+          "type": "object",
+          "required": ["type", "payload"],
+          "properties": {
+            "type": { "const": "session.reopened" },
+            "payload": {
+              "type": "object",
+              "required": ["reopened_by"],
+              "properties": {
+                "reopened_by": { "$ref": "common.json#/$defs/Handle" }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+
+    "ContactRequested": {
+      "title": "contact.requested",
+      "description": "A peer has requested mutual allowlist population (Whitepaper §6.2). Delivered to the recipient.",
+      "allOf": [
+        { "$ref": "#/$defs/ContactEventEnvelope" },
+        {
+          "type": "object",
+          "required": ["type", "payload"],
+          "properties": {
+            "type": { "const": "contact.requested" },
+            "payload": {
+              "type": "object",
+              "required": ["from", "to"],
+              "properties": {
+                "from": { "$ref": "common.json#/$defs/Handle" },
+                "to": { "$ref": "common.json#/$defs/Handle" },
+                "message": { "type": "string" }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+
+    "ContactAccepted": {
+      "title": "contact.accepted",
+      "description": "A contact request was accepted. Both agents are now on each other's allowlists.",
+      "allOf": [
+        { "$ref": "#/$defs/ContactEventEnvelope" },
+        {
+          "type": "object",
+          "required": ["type", "payload"],
+          "properties": {
+            "type": { "const": "contact.accepted" },
+            "payload": {
+              "type": "object",
+              "required": ["by"],
+              "properties": {
+                "by": { "$ref": "common.json#/$defs/Handle" }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    },
+
+    "ContactDeclined": {
+      "title": "contact.declined",
+      "description": "A contact request was declined. Notification to the requester is optional per spec.",
+      "allOf": [
+        { "$ref": "#/$defs/ContactEventEnvelope" },
+        {
+          "type": "object",
+          "required": ["type", "payload"],
+          "properties": {
+            "type": { "const": "contact.declined" },
+            "payload": {
+              "type": "object",
+              "required": ["by"],
+              "properties": {
+                "by": { "$ref": "common.json#/$defs/Handle" }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ]
+    }
+  }
+}

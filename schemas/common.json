@@ -1,0 +1,190 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://asp.dev/schemas/common.json",
+  "title": "ASP common types",
+  "description": "Shared types used across ASP wire events and HTTP endpoints. Draft.",
+
+  "$defs": {
+    "Handle": {
+      "title": "Agent handle",
+      "description": "Canonical agent address. Format: @<owner>.<agent_name>. Both parts use lowercase alphanumerics, underscore, or hyphen.",
+      "type": "string",
+      "pattern": "^@[a-z0-9_-]+\\.[a-z0-9_-]+$",
+      "examples": ["@nick.assistant", "@acme.support"]
+    },
+
+    "AllowlistEntry": {
+      "title": "Allowlist entry",
+      "description": "Either a specific agent handle or an owner glob (@owner.*).",
+      "type": "string",
+      "pattern": "^@[a-z0-9_-]+\\.([a-z0-9_-]+|\\*)$",
+      "examples": ["@acme.support", "@acme.*"]
+    },
+
+    "SessionId": {
+      "type": "string",
+      "pattern": "^sess_[0-9A-Z]+$",
+      "examples": ["sess_01HW7Z9KQX1MS2D9P5VC3GZ8AB"]
+    },
+
+    "MessageId": {
+      "type": "string",
+      "pattern": "^msg_[0-9A-Z]+$",
+      "examples": ["msg_01HW7Z9KQX1MS2D9P5VC3GZ8AB"]
+    },
+
+    "EventId": {
+      "type": "string",
+      "pattern": "^evt_[0-9A-Z]+$",
+      "examples": ["evt_01HW7Z9KQX1MS2D9P5VC3GZ8AB"]
+    },
+
+    "ContactRequestId": {
+      "type": "string",
+      "pattern": "^req_[0-9A-Z]+$",
+      "examples": ["req_01HW7Z9KQX1MS2D9P5VC3GZ8AB"]
+    },
+
+    "Sequence": {
+      "title": "Per-session monotonic sequence number",
+      "type": "integer",
+      "minimum": 0
+    },
+
+    "Timestamp": {
+      "title": "Epoch milliseconds",
+      "type": "integer",
+      "minimum": 0
+    },
+
+    "IdempotencyKey": {
+      "title": "Client-supplied idempotency key",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 255
+    },
+
+    "Metadata": {
+      "title": "Free-form structured metadata",
+      "type": "object",
+      "additionalProperties": true
+    },
+
+    "ParticipantStatus": {
+      "type": "string",
+      "enum": ["invited", "joined", "left"]
+    },
+
+    "Participant": {
+      "type": "object",
+      "required": ["handle", "status"],
+      "properties": {
+        "handle": { "$ref": "#/$defs/Handle" },
+        "status": { "$ref": "#/$defs/ParticipantStatus" },
+        "joined_at": { "$ref": "#/$defs/Timestamp" },
+        "left_at": { "$ref": "#/$defs/Timestamp" }
+      },
+      "additionalProperties": false
+    },
+
+    "TextPart": {
+      "type": "object",
+      "required": ["type", "text"],
+      "properties": {
+        "type": { "const": "text" },
+        "text": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+
+    "ImagePart": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "const": "image" },
+        "url": { "type": "string", "format": "uri" },
+        "data_uri": { "type": "string", "pattern": "^data:" },
+        "mime_type": { "type": "string" },
+        "name": { "type": "string" }
+      },
+      "additionalProperties": false,
+      "anyOf": [
+        { "required": ["url"] },
+        { "required": ["data_uri"] }
+      ]
+    },
+
+    "FilePart": {
+      "type": "object",
+      "required": ["type", "url"],
+      "properties": {
+        "type": { "const": "file" },
+        "url": { "type": "string", "format": "uri" },
+        "name": { "type": "string" },
+        "mime_type": { "type": "string" },
+        "size": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+
+    "DataPart": {
+      "type": "object",
+      "required": ["type", "data"],
+      "properties": {
+        "type": { "const": "data" },
+        "data": { "type": "object" }
+      },
+      "additionalProperties": false
+    },
+
+    "ContentPart": {
+      "oneOf": [
+        { "$ref": "#/$defs/TextPart" },
+        { "$ref": "#/$defs/ImagePart" },
+        { "$ref": "#/$defs/FilePart" },
+        { "$ref": "#/$defs/DataPart" }
+      ]
+    },
+
+    "Content": {
+      "title": "Message content",
+      "description": "Either a plain string (shorthand for one text part) or an array of typed content parts.",
+      "oneOf": [
+        { "type": "string" },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/ContentPart" }
+        }
+      ]
+    },
+
+    "Message": {
+      "title": "Session message envelope",
+      "description": "The body of a session.message event. Echoes the OpenAI ChatCompletions message shape.",
+      "type": "object",
+      "required": ["id", "session_id", "sender", "sequence", "content", "created_at"],
+      "properties": {
+        "id": { "$ref": "#/$defs/MessageId" },
+        "session_id": { "$ref": "#/$defs/SessionId" },
+        "sender": { "$ref": "#/$defs/Handle" },
+        "sequence": { "$ref": "#/$defs/Sequence" },
+        "content": { "$ref": "#/$defs/Content" },
+        "created_at": { "$ref": "#/$defs/Timestamp" },
+        "idempotency_key": { "$ref": "#/$defs/IdempotencyKey" },
+        "metadata": { "$ref": "#/$defs/Metadata" }
+      },
+      "additionalProperties": false
+    },
+
+    "SessionState": {
+      "type": "string",
+      "enum": ["active", "ended"]
+    },
+
+    "InboundPolicy": {
+      "type": "string",
+      "enum": ["allowlist", "open"]
+    }
+  }
+}
