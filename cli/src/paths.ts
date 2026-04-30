@@ -82,3 +82,13 @@ export function networkPaths(stateRoot: string, name: string): NetworkPaths {
 export function registryPath(stateRoot: string): string {
   return join(stateRoot, "networks.json");
 }
+
+/**
+ * Per-agent credential file storing the bearer token returned at registration.
+ * Written by `asp agent register`; read by session commands to authenticate.
+ * Mode 0600; lives under the network's state directory.
+ */
+export function agentCredentialPath(stateRoot: string, network: string, handle: string): string {
+  const sanitized = handle.startsWith("@") ? handle.slice(1) : handle;
+  return join(stateRoot, "networks", network, "credentials", `${sanitized}.token`);
+}

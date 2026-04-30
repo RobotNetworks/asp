@@ -1,3 +1,6 @@
+import { mkdir, writeFile } from "node:fs/promises";
+import { dirname } from "node:path";
+
 import { Command } from "commander";
 
 import {
@@ -7,6 +10,7 @@ import {
   type AgentWire,
   type Policy,
 } from "../client/admin.js";
+import { agentCredentialPath, resolveStateRoot } from "../paths.js";
 
 const DEFAULT_NETWORK = "default";
 
@@ -55,6 +59,10 @@ function makeRegisterCmd(): Command {
           handle,
           opts.policy !== undefined ? { policy: opts.policy } : {},
         );
+        // Persist token to disk so session commands can authenticate without --token
+        const credPath = agentCredentialPath(resolveStateRoot(), opts.network, handle);
+        await mkdir(dirname(credPath), { recursive: true, mode: 0o700 });
+        await writeFile(credPath, `${agent.token}\n`, { mode: 0o600 });
         if (opts.json) {
           out(JSON.stringify(agent, null, 2));
           return;
