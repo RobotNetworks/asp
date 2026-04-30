@@ -51,6 +51,12 @@ export interface NetworkPaths {
   readonly stateRoot: string;
   readonly networkDir: string;
   readonly pidFile: string;
+  /**
+   * Per-network bearer token guarding the management API (`/_admin/...`).
+   * Rotated each start; mode 0600. Any process that can read this file
+   * can manage agents on this network.
+   */
+  readonly adminTokenFile: string;
   readonly logDir: string;
   readonly serverLog: string;
   readonly networkInfo: string;
@@ -65,6 +71,7 @@ export function networkPaths(stateRoot: string, name: string): NetworkPaths {
     stateRoot,
     networkDir,
     pidFile: join(networkDir, "asp.pid"),
+    adminTokenFile: join(networkDir, "admin.token"),
     logDir,
     serverLog: join(logDir, "server.log"),
     networkInfo: join(networkDir, "network.json"),

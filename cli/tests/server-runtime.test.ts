@@ -3,10 +3,15 @@ import { describe, it } from "node:test";
 
 import { buildApp } from "../src/server/app.js";
 import { startServer } from "../src/server/runtime.js";
+import { InMemoryAgentStore } from "../src/server/store/agents.js";
+
+function makeCtx(network: string) {
+  return { network, store: new InMemoryAgentStore(), adminToken: "test-token" };
+}
 
 describe("server/runtime", () => {
   it("binds an ephemeral port, serves /health, and closes cleanly", async () => {
-    const app = buildApp({ network: "rt-test" });
+    const app = buildApp(makeCtx("rt-test"));
     const handle = await startServer({ app, host: "127.0.0.1", port: 0 });
 
     try {
@@ -33,13 +38,13 @@ describe("server/runtime", () => {
   });
 
   it("rejects when the requested port is unavailable", async () => {
-    const app = buildApp({ network: "rt-test" });
+    const app = buildApp(makeCtx("rt-test"));
     const first = await startServer({ app, host: "127.0.0.1", port: 0 });
 
     try {
       await assert.rejects(
         startServer({
-          app: buildApp({ network: "rt-test-2" }),
+          app: buildApp(makeCtx("rt-test-2")),
           host: "127.0.0.1",
           port: first.port,
         }),

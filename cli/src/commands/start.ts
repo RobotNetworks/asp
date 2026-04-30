@@ -1,7 +1,6 @@
 import { Command, Option } from "commander";
 
-import { buildApp } from "../server/app.js";
-import { startServer, type ServerHandle } from "../server/runtime.js";
+import { startNetwork, type NetworkRuntime } from "../server/network.js";
 import { runSupervisedChild } from "../supervisor/run.js";
 import { supervise } from "../supervisor/spawn.js";
 
@@ -81,15 +80,15 @@ export function registerStartCommand(program: Command): void {
 }
 
 async function runForeground(opts: StartOptions): Promise<void> {
-  const handle = await startServer({
-    app: buildApp({ network: opts.network }),
+  const runtime = await startNetwork({
+    network: opts.network,
     host: opts.host,
     port: opts.port,
   });
   process.stdout.write(
-    `ASP network "${opts.network}" listening on http://${handle.host}:${handle.port}\n`,
+    `ASP network "${opts.network}" listening on http://${runtime.handle.host}:${runtime.handle.port}\n`,
   );
-  await waitForShutdown(handle);
+  await waitForShutdown(runtime);
 }
 
 async function runDetached(opts: StartOptions): Promise<void> {
@@ -104,11 +103,11 @@ async function runDetached(opts: StartOptions): Promise<void> {
 }
 
 /**
- * Block on SIGINT/SIGTERM, then close the server and resolve. Once-only:
+ * Block on SIGINT/SIGTERM, then close the network and resolve. Once-only:
  * a second signal during shutdown re-raises so a stuck close still lets
  * the user Ctrl-C out.
  */
-function waitForShutdown(handle: ServerHandle): Promise<void> {
+function waitForShutdown(runtime: NetworkRuntime): Promise<void> {
   return new Promise((resolve, reject) => {
     let shuttingDown = false;
     const onSignal = (sig: NodeJS.Signals): void => {
@@ -118,7 +117,7 @@ function waitForShutdown(handle: ServerHandle): Promise<void> {
       }
       shuttingDown = true;
       process.stdout.write(`\nShutting down (received ${sig})\n`);
-      handle.close().then(resolve).catch(reject);
+      runtime.close().then(resolve).catch(reject);
     };
     process.once("SIGINT", onSignal);
     process.once("SIGTERM", onSignal);

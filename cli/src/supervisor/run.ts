@@ -7,8 +7,7 @@ import {
   type NetworkPaths,
 } from "../paths.js";
 import { readRegistry, upsertEntry, writeRegistry } from "../registry.js";
-import { buildApp } from "../server/app.js";
-import { startServer, type ServerHandle } from "../server/runtime.js";
+import { startNetwork, type NetworkRuntime } from "../server/network.js";
 import { clearRegistration } from "./state.js";
 import { PACKAGE_VERSION } from "../version.js";
 
@@ -40,23 +39,23 @@ export async function runSupervisedChild(
   const log = createWriteStream(paths.serverLog, { flags: "a", mode: 0o600 });
   installCrashLogger(log);
 
-  const handle = await startServer({
-    app: buildApp({ network: opts.network }),
+  const runtime = await startNetwork({
+    network: opts.network,
     host: opts.host,
     port: opts.port,
   });
 
-  await publishState(stateRoot, opts.network, paths, handle);
+  await publishState(stateRoot, opts.network, paths, runtime);
 
-  await emitReady(handle);
+  await emitReady(runtime);
   log.write(
-    `[${new Date().toISOString()}] network "${opts.network}" listening on http://${handle.host}:${handle.port} (pid ${process.pid})\n`,
+    `[${new Date().toISOString()}] network "${opts.network}" listening on http://${runtime.handle.host}:${runtime.handle.port} (pid ${process.pid})\n`,
   );
 
   const signal = await waitForSignal();
   log.write(`[${new Date().toISOString()}] received ${signal}, shutting down\n`);
 
-  await handle.close();
+  await runtime.close();
   await retract(stateRoot, opts.network);
   await new Promise<void>((resolve) => log.end(resolve));
 }
@@ -65,15 +64,15 @@ async function publishState(
   stateRoot: string,
   name: string,
   paths: NetworkPaths,
-  handle: ServerHandle,
+  runtime: NetworkRuntime,
 ): Promise<void> {
   await writeFile(paths.pidFile, `${process.pid}\n`, { mode: 0o600 });
   const reg = await readRegistry(stateRoot);
   const next = upsertEntry(reg, {
     name,
     pid: process.pid,
-    host: handle.host,
-    port: handle.port,
+    host: runtime.handle.host,
+    port: runtime.handle.port,
     startedAt: Date.now(),
     version: PACKAGE_VERSION,
   });
@@ -83,8 +82,8 @@ async function publishState(
     `${JSON.stringify(
       {
         network: name,
-        host: handle.host,
-        port: handle.port,
+        host: runtime.handle.host,
+        port: runtime.handle.port,
         pid: process.pid,
         startedAt: Date.now(),
         version: PACKAGE_VERSION,
@@ -113,11 +112,11 @@ async function retract(stateRoot: string, name: string): Promise<void> {
  * flushed before we proceed. The parent reads up to this newline and then
  * stops listening.
  */
-function emitReady(handle: ServerHandle): Promise<void> {
+function emitReady(runtime: NetworkRuntime): Promise<void> {
   const message = JSON.stringify({
     event: "ready",
-    host: handle.host,
-    port: handle.port,
+    host: runtime.handle.host,
+    port: runtime.handle.port,
     pid: process.pid,
   });
   return new Promise<void>((resolve, reject) => {
