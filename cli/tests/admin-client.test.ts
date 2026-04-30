@@ -13,6 +13,7 @@ import {
 import { buildApp } from "../src/server/app.js";
 import { startServer } from "../src/server/runtime.js";
 import { InMemoryAgentStore } from "../src/server/store/agents.js";
+import { InMemorySessionStore } from "../src/server/store/sessions.js";
 import { networkPaths } from "../src/paths.js";
 import { writeRegistry, upsertEntry } from "../src/registry.js";
 
@@ -27,7 +28,7 @@ describe("AdminClient", () => {
 
   beforeEach(async () => {
     store = new InMemoryAgentStore();
-    const app = buildApp({ network: "test", store, adminToken: ADMIN_TOKEN });
+    const app = buildApp({ network: "test", store, sessionStore: new InMemorySessionStore(), adminToken: ADMIN_TOKEN });
     handle = await startServer({ app, host: "127.0.0.1", port: 0 });
     client = new AdminClient(
       `http://127.0.0.1:${handle.port}`,
@@ -179,7 +180,7 @@ describe("connectAdmin", () => {
 
   it("returns a working AdminClient when everything is on disk", async () => {
     const store = new InMemoryAgentStore();
-    const app = buildApp({ network: "default", store, adminToken: ADMIN_TOKEN });
+    const app = buildApp({ network: "default", store, sessionStore: new InMemorySessionStore(), adminToken: ADMIN_TOKEN });
     const server = await startServer({ app, host: "127.0.0.1", port: 0 });
 
     try {

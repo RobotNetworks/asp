@@ -3,10 +3,16 @@ import { describe, it } from "node:test";
 
 import { buildApp } from "../src/server/app.js";
 import { InMemoryAgentStore } from "../src/server/store/agents.js";
+import { InMemorySessionStore } from "../src/server/store/sessions.js";
 import { PACKAGE_VERSION } from "../src/version.js";
 
 function makeCtx(network = "test-net") {
-  return { network, store: new InMemoryAgentStore(), adminToken: "test-token" };
+  return {
+    network,
+    store: new InMemoryAgentStore(),
+    sessionStore: new InMemorySessionStore(),
+    adminToken: "test-token",
+  };
 }
 
 describe("server/app", () => {

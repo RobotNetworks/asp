@@ -9,6 +9,7 @@ import {
 import { buildApp } from "./app.js";
 import { startServer, type ServerHandle } from "./runtime.js";
 import { InMemoryAgentStore, type AgentStore } from "./store/agents.js";
+import { InMemorySessionStore } from "./store/sessions.js";
 
 export interface StartNetworkOptions {
   readonly network: string;
@@ -50,8 +51,9 @@ export async function startNetwork(
   await writeFile(paths.adminTokenFile, `${adminToken}\n`, { mode: 0o600 });
 
   const store = new InMemoryAgentStore();
+  const sessionStore = new InMemorySessionStore();
   const handle = await startServer({
-    app: buildApp({ network: opts.network, store, adminToken }),
+    app: buildApp({ network: opts.network, store, sessionStore, adminToken }),
     host: opts.host,
     port: opts.port,
   });

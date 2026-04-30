@@ -2,18 +2,21 @@ import { Hono } from "hono";
 
 import { PACKAGE_VERSION } from "../version.js";
 import { buildAdminApp } from "./admin/index.js";
+import { buildSessionRoutes } from "./protocol/sessions.js";
 import type { AgentStore } from "./store/agents.js";
+import type { SessionStore } from "./store/sessions.js";
 
 /**
  * Application-level context shared with route handlers.
  *
  * Routes never reach into globals; everything they need (the network they
- * belong to, the agent store, the admin token) is wired in here so service
+ * belong to, the stores, the admin token) is wired in here so service
  * logic stays unit-testable in isolation.
  */
 export interface AppContext {
   readonly network: string;
   readonly store: AgentStore;
+  readonly sessionStore: SessionStore;
   /** Bearer token guarding the `/_admin/...` management routes. */
   readonly adminToken: string;
 }
@@ -21,15 +24,11 @@ export interface AppContext {
 /**
  * Build the Hono application for an ASP network.
  *
- * Single composition root for HTTP routing — call sites (start command,
- * tests, future supervisor) all go through here so route registration order
- * and cross-cutting middleware are defined in exactly one place.
+ * Single composition root for HTTP routing.
  *
- * Two surfaces today:
  *   GET /health          — liveness probe, no auth
  *   /_admin/...          — management API, bearer-auth'd by adminToken
- *
- * Protocol routes (sessions, messages, contacts, WS) land in phase 1.4+.
+ *   /sessions/...        — ASP session protocol, agent bearer-auth
  */
 export function buildApp(ctx: AppContext): Hono {
   const app = new Hono();
@@ -43,6 +42,7 @@ export function buildApp(ctx: AppContext): Hono {
   );
 
   app.route("/_admin", buildAdminApp(ctx.store, ctx.adminToken));
+  app.route("/sessions", buildSessionRoutes(ctx.store, ctx.sessionStore));
 
   return app;
 }

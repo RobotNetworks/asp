@@ -4,9 +4,15 @@ import { describe, it } from "node:test";
 import { buildApp } from "../src/server/app.js";
 import { startServer } from "../src/server/runtime.js";
 import { InMemoryAgentStore } from "../src/server/store/agents.js";
+import { InMemorySessionStore } from "../src/server/store/sessions.js";
 
 function makeCtx(network: string) {
-  return { network, store: new InMemoryAgentStore(), adminToken: "test-token" };
+  return {
+    network,
+    store: new InMemoryAgentStore(),
+    sessionStore: new InMemorySessionStore(),
+    adminToken: "test-token",
+  };
 }
 
 describe("server/runtime", () => {
