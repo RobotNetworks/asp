@@ -1,4 +1,6 @@
 import { Command } from "commander";
+
+import { registerStartCommand } from "./commands/start.js";
 import { PACKAGE_VERSION } from "./version.js";
 
 /**
@@ -19,11 +21,12 @@ export function buildProgram(): Command {
     .version(PACKAGE_VERSION, "-v, --version", "Show the asp CLI version")
     .helpOption("-h, --help", "Show help");
 
-  // Subcommands are registered in subsequent phases:
-  //   phase 1.1 — `asp start|stop|status|logs`
-  //   phase 1.2 — `asp agent ...`
-  //   phase 1.3 — `asp session ...`
-  //   phase 1.4 — `asp permission ...`, `asp contact ...`, `asp listen`
+  registerStartCommand(program);
+  // Subcommands registered in subsequent phases:
+  //   phase 1.2 — `asp stop|status|logs` (supervised lifecycle)
+  //   phase 1.3 — `asp agent ...`
+  //   phase 1.4 — `asp session ...`
+  //   phase 1.5 — `asp permission ...`, `asp contact ...`, `asp listen`
   //   phase 4   — `asp tap`, `asp seed`, `asp reset`
   //   phase 5   — `asp identity ...`
 
