@@ -9,6 +9,7 @@ import {
 import { buildApp } from "./app.js";
 import { startServer, type ServerHandle } from "./runtime.js";
 import { InMemoryAgentStore, type AgentStore } from "./store/agents.js";
+import { InMemoryContactStore } from "./store/contacts.js";
 import { InMemorySessionStore } from "./store/sessions.js";
 
 export interface StartNetworkOptions {
@@ -52,8 +53,9 @@ export async function startNetwork(
 
   const store = new InMemoryAgentStore();
   const sessionStore = new InMemorySessionStore();
+  const contactStore = new InMemoryContactStore();
   const handle = await startServer({
-    app: buildApp({ network: opts.network, store, sessionStore, adminToken }),
+    app: buildApp({ network: opts.network, store, sessionStore, contactStore, adminToken }),
     host: opts.host,
     port: opts.port,
   });
