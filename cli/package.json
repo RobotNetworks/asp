@@ -1,6 +1,6 @@
 {
   "name": "@robotnetworks/asp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Reference TypeScript implementation and CLI for the Agent Session Protocol (ASP). Spin up a local ASP network on your machine for protocol verification and agent-to-agent development.",
   "license": "Apache-2.0",
   "homepage": "https://github.com/RobotNetworks/asp/tree/main/cli",
@@ -52,9 +52,9 @@
     "prepack": "npm run build"
   },
   "dependencies": {
-    "@hono/node-server": "^2.0.1",
+    "@hono/node-server": "^2.0.0",
     "commander": "^13.0.0",
-    "hono": "^4.12.16",
+    "hono": "^4.12.0",
     "ws": "^8.20.0"
   },
   "devDependencies": {
