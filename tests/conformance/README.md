@@ -12,7 +12,6 @@ These tests are the executable form of the MUST and high-priority SHOULD clauses
 | `test_messages.py` | Sequence monotonicity, idempotency keys, multi-part content, schema validation |
 | `test_transport.py` | Live event delivery, eligibility filtering, event history (`GET /events`), reconnect-with-replay |
 | `test_trust.py` | 404-not-403 for trust denials, sender authentication |
-| `test_contacts.py` | Contact-request handshake (`contact.*` events) |
 
 ## Configuration
 

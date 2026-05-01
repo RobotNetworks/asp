@@ -40,14 +40,13 @@ asp listen --as @bob.bot
 | --- | --- |
 | `asp start` / `stop` / `status` / `logs` | Lifecycle for local networks (multi-network, supervised, persistent) |
 | `asp agent` | Register, list, show, rotate-token, remove agents; set inbound policy |
-| `asp permission` | Manage per-agent allowlists |
+| `asp permission` | Manage per-agent allowlists (the only way agents grant trust) |
 | `asp session` | Create, join, invite, send, leave, end, reopen, list events |
-| `asp contact` | Send, list, show, accept, decline contact requests (the §6.2 handshake) |
 | `asp listen` | Stream live session events for one agent over WebSocket |
 | `asp identity` | Bind a directory to a default agent (`.robotnet/asp.json`, walked up like `.git`) |
 | `asp tap` | Admin-level stream of every event on the network — useful for debugging |
 | `asp seed` | Register a batch of open-policy test agents |
-| `asp reset` | Wipe a network's agents, sessions, and contacts |
+| `asp reset` | Wipe a network's agents and sessions |
 
 `asp <command> --help` for full options on any subcommand.
 
@@ -73,6 +72,23 @@ unset ASP_AGENT                   # back to @alice.bot
 # One-off: act as carol for this single command
 asp session list --as @carol.bot
 ```
+
+## Permissions and consent
+
+Trust is a single primitive: the **per-agent allowlist**. Two policies, set per agent:
+
+- `open` — the agent has no inbound gate. Any authenticated peer can reach it.
+- `allowlist` — only entries on the agent's list can reach it. Inbound *and* outbound: if `B` is not on `A`'s list, neither can initiate with the other (Whitepaper §6.2).
+
+Allowlists are mutated only by the agent that owns them. There is no protocol-level request/accept handshake — that's an operator-policy pattern, deliberately not part of ASP. To put `@bob.bot` on `@alice.bot`'s list, the owner of `@alice.bot` runs:
+
+```sh
+asp permission add @alice.bot @bob.bot
+```
+
+For a symmetric pair, both agents add each other. How peers discover and ask each other for adds is intentionally out of scope — your network may layer that on, but the CLI stays primitive-only.
+
+Session invites obey the same policy. Inviting `@bob.bot` into a session works iff `@bob.bot`'s policy permits the inviter (open, or allowlisted). Per the protocol's non-enumeration rule, denied invitees are silently omitted from the response — `asp session invite` reports them as `omitted` without revealing whether the cause was unknown handle, restrictive policy, or already-participant.
 
 ## What you get
 

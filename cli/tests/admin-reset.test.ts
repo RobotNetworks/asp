@@ -4,18 +4,15 @@ import { describe, it } from "node:test";
 import { buildApp } from "../src/server/app.js";
 import { startServer } from "../src/server/runtime.js";
 import { InMemoryAgentStore } from "../src/server/store/agents.js";
-import { InMemoryContactStore } from "../src/server/store/contacts.js";
 import { InMemorySessionStore } from "../src/server/store/sessions.js";
 
 function makeApp(resetFn?: () => void) {
   const store = new InMemoryAgentStore();
   const sessionStore = new InMemorySessionStore();
-  const contactStore = new InMemoryContactStore();
   const app = buildApp({
     network: "test",
     store,
     sessionStore,
-    contactStore,
     adminToken: "admin-tok",
     resetFn,
   });

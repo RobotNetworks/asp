@@ -8,6 +8,7 @@ import {
   type EventWire,
   type SessionWire,
 } from "../client/session.js";
+import { assertValidHandle, handleArg, handlesArg } from "../handles.js";
 import { resolveAgentIdentity, type IdentitySource } from "../identity.js";
 
 const DEFAULT_NETWORK = "default";
@@ -44,7 +45,7 @@ export function registerSessionCommand(program: Command): void {
 function makeCreateCmd(): Command {
   return new Command("create")
     .description("Create a new session")
-    .option("--as <handle>", "Act as this agent handle")
+    .option("--as <handle>", "Act as this agent handle", handleArg)
     .option("-n, --network <name>", "Target network", DEFAULT_NETWORK)
     .option("--invite <handles>", "Comma-separated handles to invite")
     .option("--topic <text>", "Session topic")
@@ -60,9 +61,7 @@ function makeCreateCmd(): Command {
       wrap(async (opts: CreateOpts) => {
         const { handle, network } = await resolveAs(opts.as, opts.network);
         const client = await resolveClient(network, handle, opts.token);
-        const invite = opts.invite
-          ? opts.invite.split(",").map((h) => h.trim()).filter(Boolean)
-          : undefined;
+        const invite = parseInviteList(opts.invite);
         const result = await client.createSession({
           ...(invite !== undefined ? { invite } : {}),
           ...(opts.topic !== undefined ? { topic: opts.topic } : {}),
@@ -99,7 +98,7 @@ interface CreateOpts {
 function makeListCmd(): Command {
   return new Command("list")
     .description("List sessions the agent is part of")
-    .option("--as <handle>", "Act as this agent handle")
+    .option("--as <handle>", "Act as this agent handle", handleArg)
     .option("-n, --network <name>", "Target network", DEFAULT_NETWORK)
     .option("--token <token>", "Override the stored agent bearer token")
     .option("--json", "Emit machine-readable JSON", false)
@@ -127,7 +126,7 @@ function makeShowCmd(): Command {
   return new Command("show")
     .description("Show details for a session")
     .argument("<session-id>", "Session ID")
-    .option("--as <handle>", "Act as this agent handle")
+    .option("--as <handle>", "Act as this agent handle", handleArg)
     .option("-n, --network <name>", "Target network", DEFAULT_NETWORK)
     .option("--token <token>", "Override the stored agent bearer token")
     .option("--json", "Emit machine-readable JSON", false)
@@ -151,7 +150,7 @@ function makeJoinCmd(): Command {
   return new Command("join")
     .description("Join a session the agent has been invited to")
     .argument("<session-id>", "Session ID")
-    .option("--as <handle>", "Act as this agent handle")
+    .option("--as <handle>", "Act as this agent handle", handleArg)
     .option("-n, --network <name>", "Target network", DEFAULT_NETWORK)
     .option("--token <token>", "Override the stored agent bearer token")
     .action(
@@ -170,8 +169,8 @@ function makeInviteCmd(): Command {
   return new Command("invite")
     .description("Invite one or more agents to a session")
     .argument("<session-id>", "Session ID")
-    .argument("<handles...>", "Agent handles to invite")
-    .option("--as <handle>", "Act as this agent handle")
+    .argument("<handles...>", "Agent handles to invite", handlesArg)
+    .option("--as <handle>", "Act as this agent handle", handleArg)
     .option("-n, --network <name>", "Target network", DEFAULT_NETWORK)
     .option("--token <token>", "Override the stored agent bearer token")
     .option("--json", "Emit machine-readable JSON", false)
@@ -180,14 +179,24 @@ function makeInviteCmd(): Command {
         const { handle, network } = await resolveAs(opts.as, opts.network);
         const client = await resolveClient(network, handle, opts.token);
         const result = await client.inviteToSession(sessionId, handles);
+        const invitedSet = new Set(result.invited);
+        const omitted = handles.filter((h) => !invitedSet.has(h));
         if (opts.json) {
-          out(JSON.stringify(result, null, 2));
+          out(JSON.stringify({ invited: result.invited, omitted }, null, 2));
           return;
         }
-        if (result.invited.length === 0) {
-          out("No agents were invited (all were already participants or not reachable).");
-        } else {
+        if (result.invited.length > 0) {
           out(`Invited: ${result.invited.join(", ")}`);
+        }
+        if (omitted.length > 0) {
+          out(
+            `Omitted: ${omitted.join(", ")} ` +
+              "(unknown, already participant, blocked, or with a restrictive policy — " +
+              "the protocol does not surface which, by design)",
+          );
+        }
+        if (result.invited.length === 0 && omitted.length === 0) {
+          out("No agents were invited.");
         }
       }),
     );
@@ -200,7 +209,7 @@ function makeSendCmd(): Command {
     .description("Send a message to a session")
     .argument("<session-id>", "Session ID")
     .argument("<message>", "Message content")
-    .option("--as <handle>", "Act as this agent handle")
+    .option("--as <handle>", "Act as this agent handle", handleArg)
     .option("-n, --network <name>", "Target network", DEFAULT_NETWORK)
     .option("--token <token>", "Override the stored agent bearer token")
     .option("--json", "Emit machine-readable JSON", false)
@@ -224,7 +233,7 @@ function makeLeaveCmd(): Command {
   return new Command("leave")
     .description("Leave a session")
     .argument("<session-id>", "Session ID")
-    .option("--as <handle>", "Act as this agent handle")
+    .option("--as <handle>", "Act as this agent handle", handleArg)
     .option("-n, --network <name>", "Target network", DEFAULT_NETWORK)
     .option("--token <token>", "Override the stored agent bearer token")
     .action(
@@ -243,7 +252,7 @@ function makeEndCmd(): Command {
   return new Command("end")
     .description("End a session")
     .argument("<session-id>", "Session ID")
-    .option("--as <handle>", "Act as this agent handle")
+    .option("--as <handle>", "Act as this agent handle", handleArg)
     .option("-n, --network <name>", "Target network", DEFAULT_NETWORK)
     .option("--token <token>", "Override the stored agent bearer token")
     .action(
@@ -262,7 +271,7 @@ function makeReopenCmd(): Command {
   return new Command("reopen")
     .description("Reopen an ended session")
     .argument("<session-id>", "Session ID")
-    .option("--as <handle>", "Act as this agent handle")
+    .option("--as <handle>", "Act as this agent handle", handleArg)
     .option("-n, --network <name>", "Target network", DEFAULT_NETWORK)
     .option("--invite <handles>", "Comma-separated handles to re-invite")
     .option("--message <text>", "Send an initial message to the reopened session")
@@ -271,9 +280,7 @@ function makeReopenCmd(): Command {
       wrap(async (sessionId: string, opts: ReopenOpts) => {
         const { handle, network } = await resolveAs(opts.as, opts.network);
         const client = await resolveClient(network, handle, opts.token);
-        const invite = opts.invite
-          ? opts.invite.split(",").map((h) => h.trim()).filter(Boolean)
-          : undefined;
+        const invite = parseInviteList(opts.invite);
         await client.reopenSession(sessionId, {
           ...(invite !== undefined ? { invite } : {}),
           ...(opts.message !== undefined
@@ -299,7 +306,7 @@ function makeEventsCmd(): Command {
   return new Command("events")
     .description("Fetch events from a session")
     .argument("<session-id>", "Session ID")
-    .option("--as <handle>", "Act as this agent handle")
+    .option("--as <handle>", "Act as this agent handle", handleArg)
     .option("-n, --network <name>", "Target network", DEFAULT_NETWORK)
     .option("--after <sequence>", "Only return events after this sequence number")
     .option("--limit <n>", "Maximum number of events to return")
@@ -354,6 +361,13 @@ interface AgentNetworkOpts {
 
 interface AgentNetworkJsonOpts extends AgentNetworkOpts {
   readonly json: boolean;
+}
+
+function parseInviteList(raw: string | undefined): string[] | undefined {
+  if (raw === undefined) return undefined;
+  const handles = raw.split(",").map((h) => h.trim()).filter(Boolean);
+  for (const h of handles) assertValidHandle(h);
+  return handles;
 }
 
 async function resolveAs(

@@ -2,10 +2,8 @@ import { Hono } from "hono";
 
 import { PACKAGE_VERSION } from "../version.js";
 import { buildAdminApp } from "./admin/index.js";
-import { buildContactRoutes } from "./protocol/contacts.js";
 import { buildSessionRoutes } from "./protocol/sessions.js";
 import type { AgentStore } from "./store/agents.js";
-import type { ContactStore } from "./store/contacts.js";
 import type { SessionStore } from "./store/sessions.js";
 
 /**
@@ -19,7 +17,6 @@ export interface AppContext {
   readonly network: string;
   readonly store: AgentStore;
   readonly sessionStore: SessionStore;
-  readonly contactStore: ContactStore;
   /** Bearer token guarding the `/_admin/...` management routes. */
   readonly adminToken: string;
   /**
@@ -38,7 +35,6 @@ export interface AppContext {
  *   GET /health          — liveness probe, no auth
  *   /_admin/...          — management API, bearer-auth'd by adminToken
  *   /sessions/...        — ASP session protocol, agent bearer-auth
- *   /contacts/...        — ASP contact-request protocol, agent bearer-auth
  */
 export function buildApp(ctx: AppContext): Hono {
   const app = new Hono();
@@ -53,7 +49,6 @@ export function buildApp(ctx: AppContext): Hono {
 
   app.route("/_admin", buildAdminApp(ctx.store, ctx.adminToken, ctx.resetFn));
   app.route("/sessions", buildSessionRoutes(ctx.store, ctx.sessionStore));
-  app.route("/contacts", buildContactRoutes(ctx.store, ctx.contactStore));
 
   return app;
 }

@@ -13,7 +13,6 @@ import {
 import { buildApp } from "../src/server/app.js";
 import { startServer } from "../src/server/runtime.js";
 import { InMemoryAgentStore } from "../src/server/store/agents.js";
-import { InMemoryContactStore } from "../src/server/store/contacts.js";
 import { InMemorySessionStore } from "../src/server/store/sessions.js";
 import { agentCredentialPath } from "../src/paths.js";
 import { writeRegistry, upsertEntry } from "../src/registry.js";
@@ -33,7 +32,6 @@ describe("SessionClient", () => {
       network: "test",
       store: agentStore,
       sessionStore,
-      contactStore: new InMemoryContactStore(),
       adminToken: "admin-token",
     });
     handle = await startServer({ app, host: "127.0.0.1", port: 0 });
@@ -316,7 +314,6 @@ describe("connectSession", () => {
       network: "default",
       store: agentStore,
       sessionStore,
-      contactStore: new InMemoryContactStore(),
       adminToken: "admin-token",
     });
     const server = await startServer({ app, host: "127.0.0.1", port: 0 });
@@ -353,7 +350,6 @@ describe("connectSession", () => {
       network: "default",
       store: agentStore,
       sessionStore,
-      contactStore: new InMemoryContactStore(),
       adminToken: "admin-token",
     });
     const server = await startServer({ app, host: "127.0.0.1", port: 0 });

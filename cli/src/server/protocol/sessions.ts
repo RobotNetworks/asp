@@ -41,8 +41,8 @@ export function buildSessionRoutes(
     // Filter invitees by policy (non-enumeration: silently omit rejects).
     // If invitees were explicitly listed but every one gets filtered out, the
     // request fails with 404 — silently succeeding would let the operator mask
-    // any failed contact attempt as a zero-invite session, breaking the
-    // non-enumeration property (Whitepaper §6.2, Appendix A #8).
+    // any failed invite as a zero-invite session, breaking the non-enumeration
+    // property (Whitepaper §6.2, Appendix A #8).
     const requestedInvitees = parsed.invite ?? [];
     const filteredInvitees: string[] = [];
     for (const handle of requestedInvitees) {

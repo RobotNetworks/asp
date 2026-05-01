@@ -54,11 +54,6 @@ class ReopenBody(BaseModel):
     initial_message: InitialMessage | None = None
 
 
-class ContactBody(BaseModel):
-    to: str
-    message: str | None = None
-
-
 # ---------------------------------------------------------------------------
 # App factory
 # ---------------------------------------------------------------------------
@@ -221,39 +216,6 @@ def create_app(seed: dict[str, str]) -> FastAPI:
         except NotFound:
             raise HTTPException(status_code=404, detail="not found")
         return {"events": events}
-
-    # ---- Contacts ------------------------------------------------------
-
-    @app.post("/contacts")
-    async def post_contact(body: ContactBody, request: Request):
-        sender = auth_handle(request)
-        try:
-            request_id = await service.request_contact(sender, body.to, body.message)
-        except NotFound:
-            raise HTTPException(status_code=404, detail="not found")
-        return {"request_id": request_id}
-
-    @app.post("/contacts/{request_id}/accept")
-    async def post_contact_accept(request_id: str, request: Request):
-        caller = auth_handle(request)
-        try:
-            await service.accept_contact(caller, request_id)
-        except NotFound:
-            raise HTTPException(status_code=404, detail="not found")
-        except Conflict:
-            raise HTTPException(status_code=409, detail="not pending")
-        return {"ok": True}
-
-    @app.post("/contacts/{request_id}/decline")
-    async def post_contact_decline(request_id: str, request: Request):
-        caller = auth_handle(request)
-        try:
-            await service.decline_contact(caller, request_id)
-        except NotFound:
-            raise HTTPException(status_code=404, detail="not found")
-        except Conflict:
-            raise HTTPException(status_code=409, detail="not pending")
-        return {"ok": True}
 
     # ---- WebSocket -----------------------------------------------------
 

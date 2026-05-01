@@ -102,7 +102,7 @@ export class AdminClient {
     );
   }
 
-  /** Wipe all agents, sessions, and contacts from the network. */
+  /** Wipe all agents and sessions from the network. */
   async reset(): Promise<void> {
     await this.#post<null>("/reset", undefined);
   }

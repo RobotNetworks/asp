@@ -7,7 +7,6 @@ import { describe, it } from "node:test";
 import { buildApp } from "../src/server/app.js";
 import { startServer, type ServerHandle } from "../src/server/runtime.js";
 import { InMemoryAgentStore } from "../src/server/store/agents.js";
-import { InMemoryContactStore } from "../src/server/store/contacts.js";
 import { InMemorySessionStore } from "../src/server/store/sessions.js";
 import { WSHub } from "../src/server/ws.js";
 
@@ -33,14 +32,12 @@ interface Setup {
 async function setupServer(): Promise<Setup> {
   const agentStore = new InMemoryAgentStore();
   const sessionStore = new InMemorySessionStore();
-  const contactStore = new InMemoryContactStore();
   const hub = new WSHub();
-  hub.attach({ agentStore, sessionStore, contactStore, adminToken: ADMIN_TOKEN });
+  hub.attach({ agentStore, sessionStore, adminToken: ADMIN_TOKEN });
   const app = buildApp({
     network: "conformance",
     store: agentStore,
     sessionStore,
-    contactStore,
     adminToken: ADMIN_TOKEN,
   });
   const server = await startServer({ app, host: "127.0.0.1", port: 0, wsHub: hub });

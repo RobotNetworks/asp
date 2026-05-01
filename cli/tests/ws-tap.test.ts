@@ -6,7 +6,6 @@ import { WebSocket } from "ws";
 import { buildApp } from "../src/server/app.js";
 import { startServer } from "../src/server/runtime.js";
 import { InMemoryAgentStore } from "../src/server/store/agents.js";
-import { InMemoryContactStore } from "../src/server/store/contacts.js";
 import { InMemorySessionStore } from "../src/server/store/sessions.js";
 import { WSHub } from "../src/server/ws.js";
 
@@ -15,14 +14,12 @@ const ADMIN_TOKEN = "admin-tap-tok";
 async function setup() {
   const agentStore = new InMemoryAgentStore();
   const sessionStore = new InMemorySessionStore();
-  const contactStore = new InMemoryContactStore();
   const wsHub = new WSHub();
   wsHub.attach({ agentStore, sessionStore, adminToken: ADMIN_TOKEN });
   const app = buildApp({
     network: "test",
     store: agentStore,
     sessionStore,
-    contactStore,
     adminToken: ADMIN_TOKEN,
   });
   const server = await startServer({ app, host: "127.0.0.1", port: 0, wsHub });
@@ -68,14 +65,12 @@ describe("WS /_admin/tap", () => {
   it("returns 401 when no adminToken is wired", async () => {
     const agentStore = new InMemoryAgentStore();
     const sessionStore = new InMemorySessionStore();
-    const contactStore = new InMemoryContactStore();
     const wsHub = new WSHub();
     wsHub.attach({ agentStore, sessionStore }); // no adminToken
     const app = buildApp({
       network: "test",
       store: agentStore,
       sessionStore,
-      contactStore,
       adminToken: ADMIN_TOKEN,
     });
     const server = await startServer({ app, host: "127.0.0.1", port: 0, wsHub });

@@ -123,7 +123,7 @@ This rules out: agent-emitted status events of any kind. If a client wants UX fo
 
 The agent is the addressable identity; the owner is the entity that configures it. Trust policies, allowlist contents, blocks, and any other behavior are set by the owner, not by the agent itself. Agents authenticate as themselves and communicate as themselves; their configuration is an artifact of the owner's choices.
 
-This rules out: agents auto-modifying their own trust settings, accepting contact requests on the owner's behalf without permission, or otherwise drifting from the owner's stance.
+This rules out: agents auto-modifying their own trust settings, adding peers to their own allowlists without authorization, or otherwise drifting from the owner's stance.
 
 ---
 
@@ -136,7 +136,7 @@ ASP has four layers:
 ```mermaid
 flowchart TB
     sessions["Sessions<br/>create, invite, join, leave, end, reopen, messages"]
-    trust["Trust<br/>allowlist, open, block, contact requests"]
+    trust["Trust<br/>allowlist, open, block"]
     identity["Identity<br/>@owner.agent handles, owners, authentication, resolution"]
     transport["Transport<br/>REST binding, WebSocket event stream, delivery cursors, replay"]
 
@@ -166,7 +166,7 @@ The trust layer answers a single question: *can two agents communicate?* All tru
 
 The allowlist gates *both* inbound and outbound. If `B` is not on `A`'s list, `A` cannot contact `B` *and* `B` cannot contact `A`. The gate belongs to the agent, applied identically in either direction.
 
-For two `allowlist` agents to communicate, **each must list the other**. This is the bilateral semantic, the "contacts" model from earlier networks. To make mutual population practical, the protocol defines a contact-request handshake: the requester sends a request, the recipient accepts or declines, and on accept both lists are updated atomically. This is part of the protocol surface (see Appendix C). It is not a separate trust policy (both agents end up in `allowlist` mode with each other listed), but the handshake itself is documented in the spec rather than left for each network to reinvent.
+For two `allowlist` agents to communicate, **each must list the other**. This is the bilateral semantic, the "contacts" model from earlier networks. The protocol leaves *how* peers populate each other's lists to the operator: a network may expose a request/accept handshake, accept allowlist edits via console, gate additions on out-of-band introduction, or anything else compatible with the symmetric semantics above. The protocol primitive is the allowlist itself — entries are mutated only by the agent that owns the list.
 
 For mixed pairs (`allowlist` + `open`), the `allowlist` agent's gate dominates. The `open` agent reaches and is reached only by peers the `allowlist` agent has listed. **"Open" means *I have no gate*; it does not mean *I am universally reachable***. Every private agent has the final say.
 
@@ -647,7 +647,6 @@ A conforming client **SHOULD** also support:
 - **Reopening** ended sessions (`session.reopened`)
 - **Reconnection** within the grace window (`session.disconnected` / `session.reconnected`)
 - **Send-and-end** mode (initial message bundled with session creation; session ends after delivery; invitee receives `session.invited` with inline content followed by `session.ended`)
-- **Initiate and respond to the contact-request handshake** (`POST /contacts`, accept, decline) for mutual allowlist population between `allowlist` agents
 - **Session metadata fetch** via `GET /sessions/{id}` for state and participant snapshots
 - **Structured content types** beyond plain text
 - **Attachment-by-reference** for payloads that exceed inline limits
@@ -778,30 +777,11 @@ GET /sessions/{id}/events?after_sequence=N&limit=M
 
 WS /connect
   Auth:    per-agent (§6.1)
-  Stream:  all session.* and contact.* events for the agent,
-           multiplexed across every session, tagged by session_id (or
-           request_id for contact events).
+  Stream:  all session.* events for the agent, multiplexed across every
+           session, tagged by session_id.
 ```
 
-The protocol also defines a contact-request flow for mutual allowlist population between two `allowlist` agents (§6.2):
-
-```
-POST /contacts
-  Body:    { to: handle, message? }
-  Returns: { request_id }
-  Fires:   contact.requested → recipient
-
-POST /contacts/{request_id}/accept
-  Body:    none
-  Returns: { ok: true }
-  Effect:  both agents are added to each other's allowlists atomically.
-  Fires:   contact.accepted → requester
-
-POST /contacts/{request_id}/decline
-  Body:    none
-  Returns: { ok: true }
-  Fires:   contact.declined → requester (notification optional)
-```
+How peers come to populate each other's allowlists is operator policy, not protocol (§6.2). Networks are free to layer mechanisms — request/accept handshakes, console-driven additions, vetted introduction flows — on top of the allowlist primitive without adding to the wire.
 
 ### C.2 Session states
 

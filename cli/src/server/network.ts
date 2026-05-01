@@ -11,7 +11,6 @@ import { startServer, type ServerHandle } from "./runtime.js";
 import { type AgentStore } from "./store/agents.js";
 import { openDatabase, resetDatabase } from "./store/sqlite.js";
 import { SqliteAgentStore } from "./store/sqlite-agents.js";
-import { SqliteContactStore } from "./store/sqlite-contacts.js";
 import { SqliteSessionStore } from "./store/sqlite-sessions.js";
 import { WSHub } from "./ws.js";
 
@@ -57,11 +56,10 @@ export async function startNetwork(
   const db = openDatabase(paths.sqlite);
   const store = new SqliteAgentStore(db);
   const sessionStore = new SqliteSessionStore(db);
-  const contactStore = new SqliteContactStore(db);
   const wsHub = new WSHub();
-  wsHub.attach({ agentStore: store, sessionStore, contactStore, adminToken });
+  wsHub.attach({ agentStore: store, sessionStore, adminToken });
   const handle = await startServer({
-    app: buildApp({ network: opts.network, store, sessionStore, contactStore, adminToken, resetFn: () => resetDatabase(db) }),
+    app: buildApp({ network: opts.network, store, sessionStore, adminToken, resetFn: () => resetDatabase(db) }),
     host: opts.host,
     port: opts.port,
     wsHub,

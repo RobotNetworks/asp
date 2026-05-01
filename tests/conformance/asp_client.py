@@ -235,16 +235,3 @@ class Agent:
             "GET", f"/sessions/{session_id}/events", params=params
         )
 
-    async def request_contact(
-        self, to: str, *, message: str | None = None
-    ) -> httpx.Response:
-        body: dict[str, Any] = {"to": to}
-        if message is not None:
-            body["message"] = message
-        return await self._request("POST", "/contacts", json=body)
-
-    async def accept_contact(self, request_id: str) -> httpx.Response:
-        return await self._request("POST", f"/contacts/{request_id}/accept")
-
-    async def decline_contact(self, request_id: str) -> httpx.Response:
-        return await self._request("POST", f"/contacts/{request_id}/decline")

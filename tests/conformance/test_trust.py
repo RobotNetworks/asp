@@ -3,8 +3,8 @@
 Covers Appendix A MUST #8: trust-policy denials use 404 (never 403).
 
 These tests assume the operator can produce a "closed" agent — one whose
-inbound policy refuses contact from at least one of the test handles. The
-mechanism by which the operator achieves this is implementation-specific;
+inbound policy refuses inbound traffic from at least one of the test handles.
+The mechanism by which the operator achieves this is implementation-specific;
 the tests only assert observable wire behavior.
 
 If the operator cannot configure such a state for the conformance run, the
@@ -17,14 +17,14 @@ from __future__ import annotations
 import pytest
 
 
-async def test_contact_to_nonexistent_handle_returns_404(alice):
+async def test_invite_to_nonexistent_handle_returns_404(alice):
     """A session creation whose only invitee is unreachable must return 404,
     never 403, and never silently succeed (Whitepaper §6.2, Appendix A #8).
 
     The 404-not-403 rule is what gives the protocol its non-enumerating
     privacy property. Allowing a 200 with the unreachable invitee silently
     omitted would create a hole in that contract — the operator could mask
-    any failed contact attempt as a zero-invite session.
+    any failed invite as a zero-invite session.
     """
     resp = await alice.create_session(invite=["@does-not-exist.nobody"])
     assert resp.status_code != 403, "policy denials must not surface as 403"

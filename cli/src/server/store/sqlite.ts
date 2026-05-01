@@ -61,27 +61,20 @@ const MIGRATIONS: Array<{ version: number; sql: string }> = [
 
       CREATE INDEX IF NOT EXISTS idx_session_events_session
         ON session_events (session_id, sequence);
-
-      CREATE TABLE IF NOT EXISTS contacts (
-        id          TEXT PRIMARY KEY,
-        from_handle TEXT NOT NULL,
-        to_handle   TEXT NOT NULL,
-        message     TEXT,
-        status      TEXT NOT NULL DEFAULT 'pending',
-        created_at  INTEGER NOT NULL,
-        resolved_at INTEGER
-      );
-
-      CREATE INDEX IF NOT EXISTS idx_contacts_from ON contacts (from_handle);
-      CREATE INDEX IF NOT EXISTS idx_contacts_to   ON contacts (to_handle);
+    `,
+  },
+  {
+    version: 2,
+    sql: `
+      DROP TABLE IF EXISTS contacts;
     `,
   },
 ];
 
 /**
  * Truncate all application tables without dropping the schema. Used by the
- * admin reset endpoint to wipe all agents, sessions, contacts, and events
- * from a running network so it starts from a clean state.
+ * admin reset endpoint to wipe all agents, sessions, and events from a
+ * running network so it starts from a clean state.
  */
 export function resetDatabase(db: DatabaseSync): void {
   db.exec(`
@@ -89,7 +82,6 @@ export function resetDatabase(db: DatabaseSync): void {
     DELETE FROM session_events;
     DELETE FROM participants;
     DELETE FROM sessions;
-    DELETE FROM contacts;
     DELETE FROM agents;
     COMMIT;
   `);

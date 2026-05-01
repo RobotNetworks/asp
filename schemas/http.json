@@ -222,55 +222,6 @@
         }
       },
       "additionalProperties": false
-    },
-
-    "PostContactsRequest": {
-      "title": "POST /contacts request body",
-      "type": "object",
-      "required": ["to"],
-      "properties": {
-        "to": { "$ref": "common.json#/$defs/Handle" },
-        "message": { "type": "string" }
-      },
-      "additionalProperties": false
-    },
-
-    "PostContactsResponse": {
-      "title": "POST /contacts response",
-      "type": "object",
-      "required": ["request_id"],
-      "properties": {
-        "request_id": { "$ref": "common.json#/$defs/ContactRequestId" }
-      },
-      "additionalProperties": false
-    },
-
-    "PostContactsAcceptRequest": {
-      "title": "POST /contacts/{request_id}/accept request body",
-      "type": "object",
-      "additionalProperties": false
-    },
-
-    "PostContactsAcceptResponse": {
-      "title": "POST /contacts/{request_id}/accept response",
-      "type": "object",
-      "required": ["ok"],
-      "properties": { "ok": { "const": true } },
-      "additionalProperties": false
-    },
-
-    "PostContactsDeclineRequest": {
-      "title": "POST /contacts/{request_id}/decline request body",
-      "type": "object",
-      "additionalProperties": false
-    },
-
-    "PostContactsDeclineResponse": {
-      "title": "POST /contacts/{request_id}/decline response",
-      "type": "object",
-      "required": ["ok"],
-      "properties": { "ok": { "const": true } },
-      "additionalProperties": false
     }
   }
 }

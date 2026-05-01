@@ -10,15 +10,15 @@ const DEFAULT_NETWORK = "default";
 /**
  * Register `asp reset` on the program.
  *
- * Wipes all agents, sessions, and contacts from a running network. Requires
- * `--yes` to prevent accidental data loss. The server process stays running —
- * only the stored data is cleared.
+ * Wipes all agents and sessions from a running network. Requires `--yes` to
+ * prevent accidental data loss. The server process stays running — only the
+ * stored data is cleared.
  */
 export function registerResetCommand(program: Command): void {
   program.addCommand(
     new Command("reset")
       .description(
-        "Wipe all agents, sessions, and contacts from a running network (cannot be undone)",
+        "Wipe all agents and sessions from a running network (cannot be undone)",
       )
       .option("-n, --network <name>", "Target network", DEFAULT_NETWORK)
       .option("--yes", "Confirm the destructive reset", false)
@@ -64,7 +64,7 @@ export function registerResetCommand(program: Command): void {
         await rm(paths.credentialsDir, { recursive: true, force: true });
 
         process.stdout.write(
-          `Network "${opts.network}" has been reset. All agents, sessions, contacts, and stored credentials cleared.\n`,
+          `Network "${opts.network}" has been reset. All agents, sessions, and stored credentials cleared.\n`,
         );
       }),
   );

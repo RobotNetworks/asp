@@ -372,55 +372,6 @@ class Service:
             eligible = eligible[:limit]
         return [e.to_wire() for e in eligible]
 
-    # ---- Contacts -------------------------------------------------------
-
-    async def request_contact(
-        self, sender: str, to: str, message: str | None
-    ) -> str:
-        async with self._lock:
-            target = self.store.get_agent(to)
-            if target is None:
-                raise NotFound()
-            req = self.store.create_contact_request(sender, to, message)
-            ev = self.store.make_contact_event(
-                "contact.requested",
-                req.request_id,
-                {"from": sender, "to": to, **({"message": message} if message else {})},
-            )
-            await self.transport.deliver(to, ev)
-            return req.request_id
-
-    async def accept_contact(self, caller: str, request_id: str) -> None:
-        async with self._lock:
-            req = self.store.get_contact_request(request_id)
-            if req is None or req.to_handle != caller:
-                raise NotFound()
-            if req.state != "pending":
-                raise Conflict()
-            req.state = "accepted"
-            from_agent = self.store.get_agent(req.from_handle)
-            to_agent = self.store.get_agent(caller)
-            if from_agent and to_agent:
-                from_agent.allowlist.add(caller)
-                to_agent.allowlist.add(req.from_handle)
-            ev = self.store.make_contact_event(
-                "contact.accepted", request_id, {"by": caller}
-            )
-            await self.transport.deliver(req.from_handle, ev)
-
-    async def decline_contact(self, caller: str, request_id: str) -> None:
-        async with self._lock:
-            req = self.store.get_contact_request(request_id)
-            if req is None or req.to_handle != caller:
-                raise NotFound()
-            if req.state != "pending":
-                raise Conflict()
-            req.state = "declined"
-            ev = self.store.make_contact_event(
-                "contact.declined", request_id, {"by": caller}
-            )
-            await self.transport.deliver(req.from_handle, ev)
-
     # ---- Helpers --------------------------------------------------------
 
     def _require_active_session(self, session_id: str) -> Session:

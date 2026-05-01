@@ -1,6 +1,6 @@
 import { Command } from "commander";
 
-import { assertValidHandle } from "../handles.js";
+import { handleArg } from "../handles.js";
 import {
   clearIdentity,
   resolveIdentity,
@@ -38,15 +38,9 @@ function makeSetCmd(): Command {
     .description(
       "Write a default agent identity for this directory to .robotnet/asp.json",
     )
-    .argument("<handle>", "Agent handle (e.g. @mybot.bot)")
+    .argument("<handle>", "Agent handle (e.g. @mybot.bot)", handleArg)
     .option("-n, --network <name>", "Network the agent lives on", DEFAULT_NETWORK)
     .action(async (handle: string, opts: SetOpts) => {
-      try {
-        assertValidHandle(handle);
-      } catch {
-        process.stderr.write(`asp: invalid handle "${handle}"\n`);
-        process.exit(1);
-      }
       await writeIdentity(process.cwd(), { handle, network: opts.network });
       process.stdout.write(
         `Identity set: ${handle} on network "${opts.network}"\n` +

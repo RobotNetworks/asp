@@ -4,7 +4,6 @@ import { describe, it, beforeEach, afterEach } from "node:test";
 import { buildApp } from "../src/server/app.js";
 import { startServer } from "../src/server/runtime.js";
 import { InMemoryAgentStore } from "../src/server/store/agents.js";
-import { InMemoryContactStore } from "../src/server/store/contacts.js";
 import { InMemorySessionStore } from "../src/server/store/sessions.js";
 
 const ADMIN_TOKEN = "admin-test-token";
@@ -19,12 +18,10 @@ interface Setup {
 async function setup(): Promise<Setup> {
   const agentStore = new InMemoryAgentStore();
   const sessionStore = new InMemorySessionStore();
-  const contactStore = new InMemoryContactStore();
   const app = buildApp({
     network: "test",
     store: agentStore,
     sessionStore,
-    contactStore,
     adminToken: ADMIN_TOKEN,
   });
   const server = await startServer({ app, host: "127.0.0.1", port: 0 });
@@ -98,8 +95,8 @@ describe("POST /sessions", () => {
   });
 
   it("returns 404 when the only invitee has allowlist policy and no allowlist entry", async () => {
-    // Non-enumeration: don't let the operator mask a failed contact attempt
-    // as a zero-invite session (Whitepaper §6.2, Appendix A #8).
+    // Non-enumeration: don't let the operator mask a failed invite as a
+    // zero-invite session (Whitepaper §6.2, Appendix A #8).
     const alice = s.agentStore.register("@alice.bot", { policy: "open" });
     s.agentStore.register("@bob.bot", { policy: "allowlist" });
     const res = await fetch(`${baseUrl(s.port)}/sessions`, {

@@ -5,6 +5,7 @@ import {
   AgentNotFoundError,
   connectSession,
 } from "../client/session.js";
+import { handleArg } from "../handles.js";
 import { resolveAgentIdentity } from "../identity.js";
 
 const DEFAULT_NETWORK = "default";
@@ -21,7 +22,7 @@ export function registerListenCommand(program: Command): void {
       .description(
         "Stream live session events for an agent over WebSocket (Ctrl-C to stop)",
       )
-      .option("--as <handle>", "Act as this agent handle")
+      .option("--as <handle>", "Act as this agent handle", handleArg)
       .option("-n, --network <name>", "Target network", DEFAULT_NETWORK)
       .option("--token <token>", "Override the stored agent bearer token")
       .action(async (opts: ListenOpts) => {

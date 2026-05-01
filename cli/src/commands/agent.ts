@@ -10,6 +10,7 @@ import {
   type AgentWire,
   type Policy,
 } from "../client/admin.js";
+import { handleArg } from "../handles.js";
 import { agentCredentialPath, resolveStateRoot } from "../paths.js";
 
 const DEFAULT_NETWORK = "default";
@@ -40,7 +41,7 @@ export function registerAgentCommand(program: Command): void {
 function makeRegisterCmd(): Command {
   return new Command("register")
     .description("Register a new agent on a network")
-    .argument("<handle>", "Agent handle (e.g. @alice.bot)")
+    .argument("<handle>", "Agent handle (e.g. @alice.bot)", handleArg)
     .option("-n, --network <name>", "Target network", DEFAULT_NETWORK)
     .option(
       "--policy <policy>",
@@ -108,7 +109,7 @@ function makeListCmd(): Command {
 function makeShowCmd(): Command {
   return new Command("show")
     .description("Show details for a single agent")
-    .argument("<handle>", "Agent handle")
+    .argument("<handle>", "Agent handle", handleArg)
     .option("-n, --network <name>", "Target network", DEFAULT_NETWORK)
     .option("--json", "Emit machine-readable JSON", false)
     .action(
@@ -129,7 +130,7 @@ function makeShowCmd(): Command {
 function makeRmCmd(): Command {
   return new Command("rm")
     .description("Remove an agent from a network")
-    .argument("<handle>", "Agent handle")
+    .argument("<handle>", "Agent handle", handleArg)
     .option("-n, --network <name>", "Target network", DEFAULT_NETWORK)
     .action(
       wrap(async (handle: string, opts: { network: string }) => {
@@ -150,7 +151,7 @@ function makeRmCmd(): Command {
 function makeRotateTokenCmd(): Command {
   return new Command("rotate-token")
     .description("Issue a new bearer token for an agent")
-    .argument("<handle>", "Agent handle")
+    .argument("<handle>", "Agent handle", handleArg)
     .option("-n, --network <name>", "Target network", DEFAULT_NETWORK)
     .option("--json", "Emit machine-readable JSON", false)
     .action(
@@ -172,7 +173,7 @@ function makeRotateTokenCmd(): Command {
 function makeSetPolicyCmd(): Command {
   return new Command("set-policy")
     .description("Update the inbound trust policy for an agent")
-    .argument("<handle>", "Agent handle")
+    .argument("<handle>", "Agent handle", handleArg)
     .argument("<policy>", '"allowlist" or "open"')
     .option("-n, --network <name>", "Target network", DEFAULT_NETWORK)
     .option("--json", "Emit machine-readable JSON", false)

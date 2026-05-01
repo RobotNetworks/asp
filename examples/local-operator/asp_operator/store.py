@@ -1,4 +1,4 @@
-"""In-memory store: agents, sessions, participants, events, idempotency, contacts.
+"""In-memory store: agents, sessions, participants, events, idempotency.
 
 Designed to be swapped for SQLite or another backend without changing service.py.
 All mutating operations are synchronous; concurrency is gated externally by the
@@ -64,8 +64,7 @@ class Participant:
 
 @dataclass
 class Event:
-    """Wire-shape event. session_id+sequence for session.* events; request_id
-    for contact.* events."""
+    """Wire-shape session.* event."""
 
     type: str
     event_id: str
@@ -73,7 +72,6 @@ class Event:
     payload: dict[str, Any]
     session_id: str | None = None
     sequence: int | None = None
-    request_id: str | None = None
 
     def to_wire(self) -> dict[str, Any]:
         d: dict[str, Any] = {
@@ -86,19 +84,7 @@ class Event:
             d["session_id"] = self.session_id
         if self.sequence is not None:
             d["sequence"] = self.sequence
-        if self.request_id is not None:
-            d["request_id"] = self.request_id
         return d
-
-
-@dataclass
-class ContactRequest:
-    request_id: str
-    from_handle: str
-    to_handle: str
-    message: str | None
-    created_at: int
-    state: Literal["pending", "accepted", "declined"] = "pending"
 
 
 # ---------------------------------------------------------------------------
@@ -118,8 +104,6 @@ class Store:
         self.session_seq: dict[str, int] = {}
         # (session_id, sender_handle, idempotency_key) -> (message_id, sequence)
         self.idempotency: dict[tuple[str, str, str], tuple[str, int]] = {}
-        # contact requests
-        self.contact_requests: dict[str, ContactRequest] = {}
 
     # ---- Agents ----------------------------------------------------------
 
@@ -241,20 +225,6 @@ class Store:
             events = events[:limit]
         return events
 
-    def make_contact_event(
-        self,
-        type: str,
-        request_id: str,
-        payload: dict[str, Any],
-    ) -> Event:
-        return Event(
-            type=type,
-            event_id=make_id("evt"),
-            created_at=now_ms(),
-            payload=payload,
-            request_id=request_id,
-        )
-
     # ---- Idempotency -----------------------------------------------------
 
     def get_idempotent_message(
@@ -267,20 +237,3 @@ class Store:
     ) -> None:
         self.idempotency[(session_id, sender, key)] = (message_id, sequence)
 
-    # ---- Contacts --------------------------------------------------------
-
-    def create_contact_request(
-        self, from_handle: str, to_handle: str, message: str | None
-    ) -> ContactRequest:
-        req = ContactRequest(
-            request_id=make_id("req"),
-            from_handle=from_handle,
-            to_handle=to_handle,
-            message=message,
-            created_at=now_ms(),
-        )
-        self.contact_requests[req.request_id] = req
-        return req
-
-    def get_contact_request(self, request_id: str) -> ContactRequest | None:
-        return self.contact_requests.get(request_id)

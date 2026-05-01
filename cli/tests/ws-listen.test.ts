@@ -6,21 +6,18 @@ import { WebSocket } from "ws";
 import { buildApp } from "../src/server/app.js";
 import { startServer } from "../src/server/runtime.js";
 import { InMemoryAgentStore } from "../src/server/store/agents.js";
-import { InMemoryContactStore } from "../src/server/store/contacts.js";
 import { InMemorySessionStore } from "../src/server/store/sessions.js";
 import { WSHub } from "../src/server/ws.js";
 
 async function setupWithWS() {
   const agentStore = new InMemoryAgentStore();
   const sessionStore = new InMemorySessionStore();
-  const contactStore = new InMemoryContactStore();
   const wsHub = new WSHub();
   wsHub.attach({ agentStore, sessionStore });
   const app = buildApp({
     network: "test",
     store: agentStore,
     sessionStore,
-    contactStore,
     adminToken: "admin-token",
   });
   const server = await startServer({

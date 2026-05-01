@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://asp.dev/schemas/events.json",
   "title": "ASP wire events",
-  "description": "Events delivered to agents over the WS /connect transport. Session events are tagged by session_id; contact events are tagged by request_id (Whitepaper Appendix C.1). Draft.",
+  "description": "Events delivered to agents over the WS /connect transport. Session events are tagged by session_id (Whitepaper Appendix C.1). Draft.",
 
   "oneOf": [
     { "$ref": "#/$defs/SessionInvited" },
@@ -12,10 +12,7 @@
     { "$ref": "#/$defs/SessionLeft" },
     { "$ref": "#/$defs/SessionMessage" },
     { "$ref": "#/$defs/SessionEnded" },
-    { "$ref": "#/$defs/SessionReopened" },
-    { "$ref": "#/$defs/ContactRequested" },
-    { "$ref": "#/$defs/ContactAccepted" },
-    { "$ref": "#/$defs/ContactDeclined" }
+    { "$ref": "#/$defs/SessionReopened" }
   ],
 
   "$defs": {
@@ -28,18 +25,6 @@
         "session_id": { "$ref": "common.json#/$defs/SessionId" },
         "event_id": { "$ref": "common.json#/$defs/EventId" },
         "sequence": { "$ref": "common.json#/$defs/Sequence" },
-        "created_at": { "$ref": "common.json#/$defs/Timestamp" }
-      }
-    },
-
-    "ContactEventEnvelope": {
-      "title": "Contact event envelope",
-      "type": "object",
-      "required": ["type", "request_id", "event_id", "created_at"],
-      "properties": {
-        "type": { "type": "string", "pattern": "^contact\\." },
-        "request_id": { "$ref": "common.json#/$defs/ContactRequestId" },
-        "event_id": { "$ref": "common.json#/$defs/EventId" },
         "created_at": { "$ref": "common.json#/$defs/Timestamp" }
       }
     },
@@ -222,77 +207,6 @@
               "required": ["reopened_by"],
               "properties": {
                 "reopened_by": { "$ref": "common.json#/$defs/Handle" }
-              },
-              "additionalProperties": false
-            }
-          }
-        }
-      ]
-    },
-
-    "ContactRequested": {
-      "title": "contact.requested",
-      "description": "A peer has requested mutual allowlist population (Whitepaper §6.2). Delivered to the recipient.",
-      "allOf": [
-        { "$ref": "#/$defs/ContactEventEnvelope" },
-        {
-          "type": "object",
-          "required": ["type", "payload"],
-          "properties": {
-            "type": { "const": "contact.requested" },
-            "payload": {
-              "type": "object",
-              "required": ["from", "to"],
-              "properties": {
-                "from": { "$ref": "common.json#/$defs/Handle" },
-                "to": { "$ref": "common.json#/$defs/Handle" },
-                "message": { "type": "string" }
-              },
-              "additionalProperties": false
-            }
-          }
-        }
-      ]
-    },
-
-    "ContactAccepted": {
-      "title": "contact.accepted",
-      "description": "A contact request was accepted. Both agents are now on each other's allowlists.",
-      "allOf": [
-        { "$ref": "#/$defs/ContactEventEnvelope" },
-        {
-          "type": "object",
-          "required": ["type", "payload"],
-          "properties": {
-            "type": { "const": "contact.accepted" },
-            "payload": {
-              "type": "object",
-              "required": ["by"],
-              "properties": {
-                "by": { "$ref": "common.json#/$defs/Handle" }
-              },
-              "additionalProperties": false
-            }
-          }
-        }
-      ]
-    },
-
-    "ContactDeclined": {
-      "title": "contact.declined",
-      "description": "A contact request was declined. Notification to the requester is optional per spec.",
-      "allOf": [
-        { "$ref": "#/$defs/ContactEventEnvelope" },
-        {
-          "type": "object",
-          "required": ["type", "payload"],
-          "properties": {
-            "type": { "const": "contact.declined" },
-            "payload": {
-              "type": "object",
-              "required": ["by"],
-              "properties": {
-                "by": { "$ref": "common.json#/$defs/Handle" }
               },
               "additionalProperties": false
             }

@@ -6,7 +6,7 @@ This is what you run when you want a local ASP network on your machine to develo
 
 ## What it is
 
-- All HTTP endpoints from Whitepaper Appendix C.1 (sessions, contacts)
+- All HTTP endpoints from Whitepaper Appendix C.1 (sessions)
 - WebSocket `/connect` for live event delivery, with per-agent multiplex across sessions
 - Per-session monotonic sequence numbers, idempotency-keyed message dedup
 - Trust enforcement (allowlist + open), 404-not-403 for denials

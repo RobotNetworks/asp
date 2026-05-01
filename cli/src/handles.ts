@@ -27,3 +27,43 @@ export function assertValidHandle(value: string): void {
     );
   }
 }
+
+/**
+ * Commander argParser for a single `<handle>` argument or `--as <handle>`-style
+ * option. Validates the value and passes it through unchanged so handle-format
+ * errors surface at parse time with a clear message — never as a downstream
+ * "agent not found" or "session not found" from the API.
+ */
+export function handleArg(value: string): string {
+  assertValidHandle(value);
+  return value;
+}
+
+/**
+ * Commander argParser for a variadic `<handles...>` argument or repeated
+ * `--invite <handle>` option. Validates each value and collects them into an
+ * array.
+ */
+export function handlesArg(
+  value: string,
+  previous: readonly string[] | undefined,
+): string[] {
+  assertValidHandle(value);
+  return previous === undefined ? [value] : [...previous, value];
+}
+
+/**
+ * Commander argParser for a variadic `<entries...>` allowlist argument.
+ * Accepts handles and owner globs (`@acme.*`).
+ */
+export function allowlistEntriesArg(
+  value: string,
+  previous: readonly string[] | undefined,
+): string[] {
+  if (!isValidAllowlistEntry(value)) {
+    throw new Error(
+      `invalid allowlist entry "${value}" (expected @<owner>.<name> or @<owner>.*)`,
+    );
+  }
+  return previous === undefined ? [value] : [...previous, value];
+}

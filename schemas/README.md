@@ -7,7 +7,7 @@ These schemas evolve alongside the spec. If you spot a divergence between a sche
 ## Files
 
 - **`common.json`** — shared types: `Handle`, `SessionId`, `MessageId`, `EventId`, `Timestamp`, `Content`, `Message`, `Participant`, etc.
-- **`events.json`** — wire events delivered over `WS /connect`. Eight `session.*` events and three `contact.*` events. The top-level schema is a `oneOf` discriminated by `type`.
+- **`events.json`** — wire events delivered over `WS /connect`. Eight `session.*` events. The top-level schema is a `oneOf` discriminated by `type`.
 - **`http.json`** — request and response bodies for the REST endpoints in Whitepaper Appendix C.1.
 
 Cross-file `$ref`s use file-relative URIs (e.g. `common.json#/$defs/Handle`). The `$id` URLs are placeholders and have no canonical resolution yet.

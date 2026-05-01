@@ -31,18 +31,6 @@ export interface EventWire {
   readonly payload: Readonly<Record<string, unknown>>;
 }
 
-export type ContactRequestStatus = "pending" | "accepted" | "declined";
-
-export interface ContactRequestWire {
-  readonly id: string;
-  readonly from: string;
-  readonly to: string;
-  readonly message?: string;
-  readonly status: ContactRequestStatus;
-  readonly created_at: number;
-  readonly resolved_at?: number;
-}
-
 export class SessionApiError extends Error {
   readonly status: number;
   readonly code: string;
@@ -163,32 +151,6 @@ export class SessionClient {
     const qs = params.toString();
     const path = `/sessions/${encodeURIComponent(sessionId)}/events${qs ? `?${qs}` : ""}`;
     return this.#get<{ events: EventWire[]; next_cursor?: string }>(path);
-  }
-
-  async sendContactRequest(
-    to: string,
-    opts: { message?: string } = {},
-  ): Promise<{ request_id: string }> {
-    return this.#post<{ request_id: string }>("/contacts", {
-      to,
-      ...(opts.message !== undefined ? { message: opts.message } : {}),
-    });
-  }
-
-  async listContactRequests(): Promise<{ requests: ContactRequestWire[] }> {
-    return this.#get<{ requests: ContactRequestWire[] }>("/contacts");
-  }
-
-  async showContactRequest(requestId: string): Promise<ContactRequestWire> {
-    return this.#get<ContactRequestWire>(`/contacts/${encodeURIComponent(requestId)}`);
-  }
-
-  async acceptContactRequest(requestId: string): Promise<void> {
-    await this.#post(`/contacts/${encodeURIComponent(requestId)}/accept`, {});
-  }
-
-  async declineContactRequest(requestId: string): Promise<void> {
-    await this.#post(`/contacts/${encodeURIComponent(requestId)}/decline`, {});
   }
 
   async #get<T>(path: string): Promise<T> {

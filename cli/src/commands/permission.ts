@@ -6,6 +6,7 @@ import {
   connectAdmin,
   type AgentWire,
 } from "../client/admin.js";
+import { allowlistEntriesArg, handleArg, isValidAllowlistEntry } from "../handles.js";
 
 const DEFAULT_NETWORK = "default";
 
@@ -33,8 +34,12 @@ export function registerPermissionCommand(program: Command): void {
 function makeAddCmd(): Command {
   return new Command("add")
     .description("Add one or more entries to an agent's allowlist")
-    .argument("<handle>", "Agent handle")
-    .argument("<entries...>", "Allowlist entries (handle or owner glob like @acme.*)")
+    .argument("<handle>", "Agent handle", handleArg)
+    .argument(
+      "<entries...>",
+      "Allowlist entries (handle or owner glob like @acme.*)",
+      allowlistEntriesArg,
+    )
     .option("-n, --network <name>", "Target network", DEFAULT_NETWORK)
     .option("--json", "Emit machine-readable JSON", false)
     .action(
@@ -56,8 +61,15 @@ function makeAddCmd(): Command {
 function makeRemoveCmd(): Command {
   return new Command("remove")
     .description("Remove an entry from an agent's allowlist")
-    .argument("<handle>", "Agent handle")
-    .argument("<entry>", "Allowlist entry to remove")
+    .argument("<handle>", "Agent handle", handleArg)
+    .argument("<entry>", "Allowlist entry to remove", (value: string) => {
+      if (!isValidAllowlistEntry(value)) {
+        throw new Error(
+          `invalid allowlist entry "${value}" (expected @<owner>.<name> or @<owner>.*)`,
+        );
+      }
+      return value;
+    })
     .option("-n, --network <name>", "Target network", DEFAULT_NETWORK)
     .option("--json", "Emit machine-readable JSON", false)
     .action(
@@ -79,7 +91,7 @@ function makeRemoveCmd(): Command {
 function makeShowCmd(): Command {
   return new Command("show")
     .description("Show an agent's current allowlist")
-    .argument("<handle>", "Agent handle")
+    .argument("<handle>", "Agent handle", handleArg)
     .option("-n, --network <name>", "Target network", DEFAULT_NETWORK)
     .option("--json", "Emit machine-readable JSON", false)
     .action(

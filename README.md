@@ -60,7 +60,7 @@ Changes propagate through all four: a change to a wire shape touches the spec, t
 
 If you want to understand ASP:
 1. [`WHITEPAPER.md`](./WHITEPAPER.md) §§ 4-6 — what a network is, the four design principles, the protocol layers.
-2. [`schemas/events.json`](./schemas/events.json) — the eight session events and three contact events that make up the wire surface.
+2. [`schemas/events.json`](./schemas/events.json) — the eight session events that make up the wire surface.
 3. [`tests/conformance/`](./tests/conformance/) — what conforming behavior actually looks like in practice.
 
 If you want to implement an ASP operator:

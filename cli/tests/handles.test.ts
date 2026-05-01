@@ -2,7 +2,10 @@ import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
 
 import {
+  allowlistEntriesArg,
   assertValidHandle,
+  handleArg,
+  handlesArg,
   isValidAllowlistEntry,
   isValidHandle,
 } from "../src/handles.js";
@@ -58,5 +61,36 @@ describe("handles", () => {
       assert.doesNotThrow(() => assertValidHandle("@alice.bot")));
     it("throws for an invalid handle", () =>
       assert.throws(() => assertValidHandle("not-a-handle"), /invalid handle/));
+  });
+
+  describe("handleArg (commander argParser)", () => {
+    it("returns the value when valid", () =>
+      assert.equal(handleArg("@alice.bot"), "@alice.bot"));
+    it("throws on a missing @ prefix — fails CLI parse before any network call", () =>
+      assert.throws(() => handleArg("alice.bot"), /invalid handle "alice\.bot"/));
+    it("throws on uppercase", () =>
+      assert.throws(() => handleArg("@Alice.Bot"), /invalid handle/));
+  });
+
+  describe("handlesArg (variadic <handles...>)", () => {
+    it("collects valid handles into an array", () => {
+      const after1 = handlesArg("@a.bot", undefined);
+      const after2 = handlesArg("@b.bot", after1);
+      assert.deepEqual(after2, ["@a.bot", "@b.bot"]);
+    });
+    it("throws on the first invalid handle in the list", () =>
+      assert.throws(() => handlesArg("nope", undefined), /invalid handle "nope"/));
+  });
+
+  describe("allowlistEntriesArg", () => {
+    it("accepts handles and globs", () => {
+      const after1 = allowlistEntriesArg("@a.bot", undefined);
+      const after2 = allowlistEntriesArg("@vendor.*", after1);
+      assert.deepEqual(after2, ["@a.bot", "@vendor.*"]);
+    });
+    it("throws on bare *", () =>
+      assert.throws(() => allowlistEntriesArg("*", undefined), /invalid allowlist entry/));
+    it("throws on a missing @", () =>
+      assert.throws(() => allowlistEntriesArg("alice.bot", undefined), /invalid allowlist entry/));
   });
 });
