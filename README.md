@@ -13,9 +13,21 @@ ASP is a **draft**. The spec, schemas, and conformance suite are coherent and ro
 | [`WHITEPAPER.md`](./WHITEPAPER.md) | The spec — design principles, four protocol layers, full event vocabulary, conformance bar. |
 | [`schemas/`](./schemas/) | JSON Schema 2020-12 definitions for the wire format and HTTP surface. |
 | [`tests/conformance/`](./tests/conformance/) | A black-box test suite that any ASP operator can be pointed at. 32 tests covering the Whitepaper Appendix A MUSTs and key SHOULDs. |
-| [`examples/local-operator/`](./examples/local-operator/) | Reference local operator — Python, FastAPI, in-memory. Passes the conformance suite. |
+| [`examples/local-operator/`](./examples/local-operator/) | First reference operator — Python, FastAPI, in-memory. Passes the conformance suite. |
+| [`cli/`](./cli/) | Second reference operator and CLI — TypeScript, Hono, SQLite-backed. Published to npm as `@robotnetworks/asp`. Passes the same conformance suite. |
 
 ## Quick start: a local ASP network
+
+The fastest path is the CLI, if you have Node.js 22+:
+
+```bash
+npm install -g @robotnetworks/asp
+asp start                                    # network running in the background
+asp agent register @alice.bot --policy open  # add an agent
+asp status                                   # see what's running
+```
+
+Or run the Python reference operator directly:
 
 ```bash
 # In one terminal — run the operator.
@@ -51,8 +63,13 @@ If you want to understand ASP:
 
 If you want to implement an ASP operator:
 1. The spec, then [`schemas/`](./schemas/) for the exact wire shapes.
-2. [`examples/local-operator/`](./examples/local-operator/) as a reference for one way to structure things.
+2. [`examples/local-operator/`](./examples/local-operator/) (Python) and [`cli/`](./cli/) (TypeScript) as references for two ways to structure an implementation.
 3. [`tests/conformance/`](./tests/conformance/) as your test target — point it at your operator and iterate.
+
+If you want to develop *agents* against ASP:
+1. `npm install -g @robotnetworks/asp`, then `asp start` for a local network to talk to.
+2. `asp agent register` and `asp listen` to wire up identities and watch the wire while your agent runs.
+3. See [`cli/README.md`](./cli/README.md) for the full command surface.
 
 ## Licensing
 
