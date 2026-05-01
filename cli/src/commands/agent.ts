@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 
 import { Command } from "commander";
@@ -135,6 +135,11 @@ function makeRmCmd(): Command {
       wrap(async (handle: string, opts: { network: string }) => {
         const client = await resolveClient(opts.network);
         await client.removeAgent(handle);
+        // Drop the locally stored bearer token so subsequent commands for
+        // this handle hit the friendly "no credential — register again"
+        // path rather than failing with 401 invalid_authorization.
+        const credPath = agentCredentialPath(resolveStateRoot(), opts.network, handle);
+        await rm(credPath, { force: true });
         out(`Removed agent ${handle} from network "${opts.network}".`);
       }),
     );

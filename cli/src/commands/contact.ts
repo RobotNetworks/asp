@@ -6,7 +6,7 @@ import {
   connectSession,
   type ContactRequestWire,
 } from "../client/session.js";
-import { resolveIdentity } from "../identity.js";
+import { resolveAgentIdentity, type IdentitySource } from "../identity.js";
 
 const DEFAULT_NETWORK = "default";
 
@@ -170,19 +170,15 @@ interface AgentNetworkJsonOpts extends AgentNetworkOpts {
 async function resolveAs(
   explicit: string | undefined,
   network: string,
-): Promise<{ handle: string; network: string }> {
-  if (explicit !== undefined) return { handle: explicit, network };
-  const identity = await resolveIdentity();
-  if (!identity) {
+): Promise<{ handle: string; network: string; source: IdentitySource }> {
+  const resolved = await resolveAgentIdentity(explicit, network, DEFAULT_NETWORK);
+  if (!resolved) {
     process.stderr.write(
-      "asp: --as <handle> is required, or set a directory identity with `asp identity set`\n",
+      "asp: --as <handle> is required, or set ASP_AGENT, or bind a directory identity with `asp identity set`\n",
     );
     process.exit(1);
   }
-  return {
-    handle: identity.handle,
-    network: network === DEFAULT_NETWORK ? identity.network : network,
-  };
+  return resolved;
 }
 
 async function resolveClient(
@@ -237,7 +233,11 @@ function apiErrorMessage(err: SessionApiError): string {
       return "invalid contact request";
     case "missing_authorization":
     case "invalid_authorization":
-      return "authorization rejected — is your token correct?";
+      return (
+        "authorization rejected — the agent may have been removed " +
+        "(check `asp agent list`; if a directory identity points at it, " +
+        "run `asp identity clear`)"
+      );
     default:
       return `server returned ${err.status}: ${err.code}`;
   }

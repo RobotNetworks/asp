@@ -27,6 +27,67 @@ export interface ResolvedIdentity extends IdentityConfig {
 }
 
 /**
+ * Where the agent handle came from. Used by error handlers to give
+ * actionable advice when an action fails (e.g. "the agent bound by
+ * .robotnet/asp.json may have been removed — run `asp identity clear`").
+ */
+export type IdentitySource = "flag" | "env" | "identity";
+
+export interface ResolvedAgent {
+  readonly handle: string;
+  readonly network: string;
+  readonly source: IdentitySource;
+}
+
+/**
+ * Three-way precedence for "what agent should this command act as":
+ *   1. `--as <handle>` flag (explicit per-command override)
+ *   2. `ASP_AGENT` env var (per-shell override, useful for running two
+ *      terminal sessions in the same directory as different agents)
+ *   3. `.robotnet/asp.json` directory binding (default for the project)
+ *
+ * `defaultNetwork` is the value the CLI's `--network` flag defaults to
+ * (currently "default"). When `explicitNetwork` differs from it, the
+ * caller passed `-n` explicitly and we honor it; otherwise we fall back
+ * to whatever network the directory identity declares (if any).
+ *
+ * Returns `undefined` when no source produced a handle — the caller is
+ * expected to surface a friendly error message.
+ */
+export async function resolveAgentIdentity(
+  explicitHandle: string | undefined,
+  explicitNetwork: string,
+  defaultNetwork: string,
+  fromDir?: string,
+): Promise<ResolvedAgent | undefined> {
+  if (explicitHandle !== undefined) {
+    return { handle: explicitHandle, network: explicitNetwork, source: "flag" };
+  }
+
+  // Resolve directory identity once — we may need its network even when
+  // the handle came from the env var.
+  const identity = await resolveIdentity(fromDir);
+
+  // Network: --network flag wins when explicit, else the identity's
+  // network, else defaultNetwork.
+  const network =
+    explicitNetwork !== defaultNetwork
+      ? explicitNetwork
+      : identity?.network ?? defaultNetwork;
+
+  const envHandle = process.env["ASP_AGENT"];
+  if (envHandle !== undefined && envHandle.length > 0) {
+    return { handle: envHandle, network, source: "env" };
+  }
+
+  if (identity) {
+    return { handle: identity.handle, network, source: "identity" };
+  }
+
+  return undefined;
+}
+
+/**
  * Walk up the directory tree from `fromDir` (default: `process.cwd()`)
  * looking for `.robotnet/asp.json`. Returns the first valid identity found,
  * or `undefined` if none exists anywhere in the tree.

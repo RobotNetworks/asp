@@ -61,6 +61,8 @@ export interface NetworkPaths {
   readonly serverLog: string;
   readonly networkInfo: string;
   readonly sqlite: string;
+  /** Directory holding per-agent bearer-token files written by `asp agent register`. */
+  readonly credentialsDir: string;
 }
 
 export function networkPaths(stateRoot: string, name: string): NetworkPaths {
@@ -76,6 +78,7 @@ export function networkPaths(stateRoot: string, name: string): NetworkPaths {
     serverLog: join(logDir, "server.log"),
     networkInfo: join(networkDir, "network.json"),
     sqlite: join(networkDir, "asp.sqlite"),
+    credentialsDir: join(networkDir, "credentials"),
   };
 }
 

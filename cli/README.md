@@ -51,6 +51,29 @@ asp listen --as @bob.bot
 
 `asp <command> --help` for full options on any subcommand.
 
+## Picking the acting agent
+
+Most commands need an agent identity. Three ways to provide it, in order of precedence:
+
+1. `--as <handle>` — per-command flag.
+2. `ASP_AGENT=<handle>` env var — per-shell override. Useful when two terminals in the same project want to act as different agents.
+3. `.robotnet/asp.json` — directory binding (walked up like `.git`); set with `asp identity set <handle>`.
+
+The `--network`/`-n` flag wins over the directory's network when explicit; `ASP_AGENT` only overrides the handle, not the network.
+
+```sh
+# Bind the project to alice by default
+asp identity set @alice.bot
+
+# In another terminal, act as bob just for this shell
+export ASP_AGENT=@bob.bot
+asp session list                  # runs as @bob.bot
+unset ASP_AGENT                   # back to @alice.bot
+
+# One-off: act as carol for this single command
+asp session list --as @carol.bot
+```
+
 ## What you get
 
 - **Multi-network.** Run multiple isolated ASP networks side-by-side; each has its own port, admin token, and SQLite store.

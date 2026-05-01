@@ -5,7 +5,7 @@ import {
   AgentNotFoundError,
   connectSession,
 } from "../client/session.js";
-import { resolveIdentity } from "../identity.js";
+import { resolveAgentIdentity } from "../identity.js";
 
 const DEFAULT_NETWORK = "default";
 
@@ -25,19 +25,15 @@ export function registerListenCommand(program: Command): void {
       .option("-n, --network <name>", "Target network", DEFAULT_NETWORK)
       .option("--token <token>", "Override the stored agent bearer token")
       .action(async (opts: ListenOpts) => {
-        let handle = opts.as;
-        let network = opts.network;
-        if (!handle) {
-          const identity = await resolveIdentity();
-          if (!identity) {
-            process.stderr.write(
-              "asp: --as <handle> is required, or set a directory identity with `asp identity set`\n",
-            );
-            process.exit(1);
-          }
-          handle = identity.handle;
-          if (network === DEFAULT_NETWORK) network = identity.network;
+        const resolved = await resolveAgentIdentity(opts.as, opts.network, DEFAULT_NETWORK);
+        if (!resolved) {
+          process.stderr.write(
+            "asp: --as <handle> is required, or set ASP_AGENT, or bind a directory identity with `asp identity set`\n",
+          );
+          process.exit(1);
         }
+        const handle = resolved.handle;
+        const network = resolved.network;
 
         let client;
         try {

@@ -1,6 +1,9 @@
+import { rm } from "node:fs/promises";
+
 import { Command } from "commander";
 
 import { AdminApiError, NetworkNotRunningError, connectAdmin } from "../client/admin.js";
+import { networkPaths, resolveStateRoot } from "../paths.js";
 
 const DEFAULT_NETWORK = "default";
 
@@ -51,8 +54,17 @@ export function registerResetCommand(program: Command): void {
           }
           throw err;
         }
+
+        // The server-side wipe leaves stale per-agent credential files on
+        // disk. Delete them so the next command for a removed agent fails
+        // with the friendly "no credential — register again" error rather
+        // than a 401 invalid_authorization with a token that no longer
+        // matches anyone.
+        const paths = networkPaths(resolveStateRoot(), opts.network);
+        await rm(paths.credentialsDir, { recursive: true, force: true });
+
         process.stdout.write(
-          `Network "${opts.network}" has been reset. All agents, sessions, and contacts cleared.\n`,
+          `Network "${opts.network}" has been reset. All agents, sessions, contacts, and stored credentials cleared.\n`,
         );
       }),
   );
