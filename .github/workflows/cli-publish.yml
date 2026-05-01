@@ -1,0 +1,79 @@
+name: cli publish
+
+on:
+  push:
+    tags:
+      - "cli-v*"
+
+permissions:
+  contents: read
+  # Required for npm provenance: the action mints a short-lived OIDC token
+  # that npm uses to attest the build came from this exact workflow run.
+  id-token: write
+
+jobs:
+  publish:
+    name: publish to npm
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cli
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+          cache: npm
+          cache-dependency-path: cli/package-lock.json
+
+      - name: Verify tag matches package.json version
+        run: |
+          PKG_VERSION=$(jq -r .version package.json)
+          TAG_VERSION="${GITHUB_REF_NAME#cli-v}"
+          if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
+            echo "::error::Tag cli-v$TAG_VERSION does not match cli/package.json version $PKG_VERSION"
+            exit 1
+          fi
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  bump-homebrew:
+    name: bump homebrew tap
+    needs: publish
+    if: ${{ !contains(github.ref_name, '-') }} # skip prereleases like cli-v0.1.0-rc.1
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for npm registry to propagate
+        run: sleep 30
+
+      - name: Update Homebrew tap formula
+        env:
+          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          VERSION="${REF_NAME#cli-v}"
+          TARBALL_URL="https://registry.npmjs.org/@robotnetworks/asp/-/asp-${VERSION}.tgz"
+          SHA256=$(curl -sSL "$TARBALL_URL" | shasum -a 256 | cut -d' ' -f1)
+          echo "Version: $VERSION"
+          echo "Tarball: $TARBALL_URL"
+          echo "sha256:  $SHA256"
+
+          git clone "https://x-access-token:${TAP_TOKEN}@github.com/RobotNetworks/homebrew-tap.git" tap
+          cd tap
+
+          sed -i "s|url \".*\"|url \"${TARBALL_URL}\"|" Formula/asp.rb
+          sed -i "s|sha256 \".*\"|sha256 \"${SHA256}\"|" Formula/asp.rb
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/asp.rb
+          git diff --cached --quiet && { echo "No formula changes, skipping commit."; exit 0; }
+          git commit -m "asp ${VERSION}"
+          git push
