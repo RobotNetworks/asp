@@ -5,6 +5,7 @@ import {
   AgentNotFoundError,
   connectSession,
 } from "../client/session.js";
+import { resolveIdentity } from "../identity.js";
 
 const DEFAULT_NETWORK = "default";
 
@@ -24,16 +25,23 @@ export function registerListenCommand(program: Command): void {
       .option("-n, --network <name>", "Target network", DEFAULT_NETWORK)
       .option("--token <token>", "Override the stored agent bearer token")
       .action(async (opts: ListenOpts) => {
-        if (!opts.as) {
-          process.stderr.write(
-            "asp: --as <handle> is required — specify the acting agent handle\n",
-          );
-          process.exit(1);
+        let handle = opts.as;
+        let network = opts.network;
+        if (!handle) {
+          const identity = await resolveIdentity();
+          if (!identity) {
+            process.stderr.write(
+              "asp: --as <handle> is required, or set a directory identity with `asp identity set`\n",
+            );
+            process.exit(1);
+          }
+          handle = identity.handle;
+          if (network === DEFAULT_NETWORK) network = identity.network;
         }
 
         let client;
         try {
-          client = await connectSession(opts.network, opts.as, opts.token);
+          client = await connectSession(network, handle, opts.token);
         } catch (err) {
           if (err instanceof AgentNotFoundError) {
             process.stderr.write(`asp: ${err.message}\n`);
@@ -48,7 +56,7 @@ export function registerListenCommand(program: Command): void {
 
         const wsUrl = `${client.wsUrl}?token=${encodeURIComponent(client.token)}`;
         process.stderr.write(
-          `Listening for events on ${opts.network} as ${opts.as}…\n`,
+          `Listening for events on ${network} as ${handle}…\n`,
         );
 
         const ws = new WebSocket(wsUrl);

@@ -8,6 +8,7 @@ import {
   type EventWire,
   type SessionWire,
 } from "../client/session.js";
+import { resolveIdentity } from "../identity.js";
 
 const DEFAULT_NETWORK = "default";
 
@@ -57,8 +58,8 @@ function makeCreateCmd(): Command {
     .option("--json", "Emit machine-readable JSON", false)
     .action(
       wrap(async (opts: CreateOpts) => {
-        requireAs(opts.as);
-        const client = await resolveClient(opts.network, opts.as, opts.token);
+        const { handle, network } = await resolveAs(opts.as, opts.network);
+        const client = await resolveClient(network, handle, opts.token);
         const invite = opts.invite
           ? opts.invite.split(",").map((h) => h.trim()).filter(Boolean)
           : undefined;
@@ -104,15 +105,15 @@ function makeListCmd(): Command {
     .option("--json", "Emit machine-readable JSON", false)
     .action(
       wrap(async (opts: AgentNetworkJsonOpts) => {
-        requireAs(opts.as);
-        const client = await resolveClient(opts.network, opts.as, opts.token);
+        const { handle, network } = await resolveAs(opts.as, opts.network);
+        const client = await resolveClient(network, handle, opts.token);
         const sessions = await client.listSessions();
         if (opts.json) {
           out(JSON.stringify({ sessions }, null, 2));
           return;
         }
         if (sessions.length === 0) {
-          out(`No sessions found for ${opts.as} on network "${opts.network}".`);
+          out(`No sessions found for ${handle} on network "${network}".`);
           return;
         }
         out(formatSessionTable(sessions));
@@ -132,8 +133,8 @@ function makeShowCmd(): Command {
     .option("--json", "Emit machine-readable JSON", false)
     .action(
       wrap(async (sessionId: string, opts: AgentNetworkJsonOpts) => {
-        requireAs(opts.as);
-        const client = await resolveClient(opts.network, opts.as, opts.token);
+        const { handle, network } = await resolveAs(opts.as, opts.network);
+        const client = await resolveClient(network, handle, opts.token);
         const session = await client.showSession(sessionId);
         if (opts.json) {
           out(JSON.stringify(session, null, 2));
@@ -155,8 +156,8 @@ function makeJoinCmd(): Command {
     .option("--token <token>", "Override the stored agent bearer token")
     .action(
       wrap(async (sessionId: string, opts: AgentNetworkOpts) => {
-        requireAs(opts.as);
-        const client = await resolveClient(opts.network, opts.as, opts.token);
+        const { handle, network } = await resolveAs(opts.as, opts.network);
+        const client = await resolveClient(network, handle, opts.token);
         await client.joinSession(sessionId);
         out(`Joined session ${sessionId}.`);
       }),
@@ -176,8 +177,8 @@ function makeInviteCmd(): Command {
     .option("--json", "Emit machine-readable JSON", false)
     .action(
       wrap(async (sessionId: string, handles: string[], opts: AgentNetworkJsonOpts) => {
-        requireAs(opts.as);
-        const client = await resolveClient(opts.network, opts.as, opts.token);
+        const { handle, network } = await resolveAs(opts.as, opts.network);
+        const client = await resolveClient(network, handle, opts.token);
         const result = await client.inviteToSession(sessionId, handles);
         if (opts.json) {
           out(JSON.stringify(result, null, 2));
@@ -205,8 +206,8 @@ function makeSendCmd(): Command {
     .option("--json", "Emit machine-readable JSON", false)
     .action(
       wrap(async (sessionId: string, message: string, opts: AgentNetworkJsonOpts) => {
-        requireAs(opts.as);
-        const client = await resolveClient(opts.network, opts.as, opts.token);
+        const { handle, network } = await resolveAs(opts.as, opts.network);
+        const client = await resolveClient(network, handle, opts.token);
         const result = await client.sendMessage(sessionId, message);
         if (opts.json) {
           out(JSON.stringify(result, null, 2));
@@ -228,8 +229,8 @@ function makeLeaveCmd(): Command {
     .option("--token <token>", "Override the stored agent bearer token")
     .action(
       wrap(async (sessionId: string, opts: AgentNetworkOpts) => {
-        requireAs(opts.as);
-        const client = await resolveClient(opts.network, opts.as, opts.token);
+        const { handle, network } = await resolveAs(opts.as, opts.network);
+        const client = await resolveClient(network, handle, opts.token);
         await client.leaveSession(sessionId);
         out(`Left session ${sessionId}.`);
       }),
@@ -247,8 +248,8 @@ function makeEndCmd(): Command {
     .option("--token <token>", "Override the stored agent bearer token")
     .action(
       wrap(async (sessionId: string, opts: AgentNetworkOpts) => {
-        requireAs(opts.as);
-        const client = await resolveClient(opts.network, opts.as, opts.token);
+        const { handle, network } = await resolveAs(opts.as, opts.network);
+        const client = await resolveClient(network, handle, opts.token);
         await client.endSession(sessionId);
         out(`Ended session ${sessionId}.`);
       }),
@@ -268,8 +269,8 @@ function makeReopenCmd(): Command {
     .option("--token <token>", "Override the stored agent bearer token")
     .action(
       wrap(async (sessionId: string, opts: ReopenOpts) => {
-        requireAs(opts.as);
-        const client = await resolveClient(opts.network, opts.as, opts.token);
+        const { handle, network } = await resolveAs(opts.as, opts.network);
+        const client = await resolveClient(network, handle, opts.token);
         const invite = opts.invite
           ? opts.invite.split(",").map((h) => h.trim()).filter(Boolean)
           : undefined;
@@ -306,8 +307,8 @@ function makeEventsCmd(): Command {
     .option("--json", "Emit machine-readable JSON", false)
     .action(
       wrap(async (sessionId: string, opts: EventsOpts) => {
-        requireAs(opts.as);
-        const client = await resolveClient(opts.network, opts.as, opts.token);
+        const { handle, network } = await resolveAs(opts.as, opts.network);
+        const client = await resolveClient(network, handle, opts.token);
         const afterSequence =
           opts.after !== undefined ? parseInt(opts.after, 10) : undefined;
         const limit =
@@ -355,13 +356,22 @@ interface AgentNetworkJsonOpts extends AgentNetworkOpts {
   readonly json: boolean;
 }
 
-function requireAs(handle: string | undefined): asserts handle is string {
-  if (!handle) {
+async function resolveAs(
+  explicit: string | undefined,
+  network: string,
+): Promise<{ handle: string; network: string }> {
+  if (explicit !== undefined) return { handle: explicit, network };
+  const identity = await resolveIdentity();
+  if (!identity) {
     process.stderr.write(
-      "asp: --as <handle> is required — specify the acting agent handle\n",
+      "asp: --as <handle> is required, or set a directory identity with `asp identity set`\n",
     );
     process.exit(1);
   }
+  return {
+    handle: identity.handle,
+    network: network === DEFAULT_NETWORK ? identity.network : network,
+  };
 }
 
 async function resolveClient(

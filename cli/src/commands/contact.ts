@@ -6,6 +6,7 @@ import {
   connectSession,
   type ContactRequestWire,
 } from "../client/session.js";
+import { resolveIdentity } from "../identity.js";
 
 const DEFAULT_NETWORK = "default";
 
@@ -43,8 +44,8 @@ function makeSendCmd(): Command {
     .option("--json", "Emit machine-readable JSON", false)
     .action(
       wrap(async (to: string, opts: SendOpts) => {
-        requireAs(opts.as);
-        const client = await resolveClient(opts.network, opts.as, opts.token);
+        const { handle, network } = await resolveAs(opts.as, opts.network);
+        const client = await resolveClient(network, handle, opts.token);
         const result = await client.sendContactRequest(to, {
           ...(opts.message !== undefined ? { message: opts.message } : {}),
         });
@@ -76,8 +77,8 @@ function makeListCmd(): Command {
     .option("--json", "Emit machine-readable JSON", false)
     .action(
       wrap(async (opts: AgentNetworkJsonOpts) => {
-        requireAs(opts.as);
-        const client = await resolveClient(opts.network, opts.as, opts.token);
+        const { handle, network } = await resolveAs(opts.as, opts.network);
+        const client = await resolveClient(network, handle, opts.token);
         const { requests } = await client.listContactRequests();
         if (opts.json) {
           out(JSON.stringify({ requests }, null, 2));
@@ -104,8 +105,8 @@ function makeShowCmd(): Command {
     .option("--json", "Emit machine-readable JSON", false)
     .action(
       wrap(async (requestId: string, opts: AgentNetworkJsonOpts) => {
-        requireAs(opts.as);
-        const client = await resolveClient(opts.network, opts.as, opts.token);
+        const { handle, network } = await resolveAs(opts.as, opts.network);
+        const client = await resolveClient(network, handle, opts.token);
         const req = await client.showContactRequest(requestId);
         if (opts.json) {
           out(JSON.stringify(req, null, 2));
@@ -127,8 +128,8 @@ function makeAcceptCmd(): Command {
     .option("--token <token>", "Override the stored agent bearer token")
     .action(
       wrap(async (requestId: string, opts: AgentNetworkOpts) => {
-        requireAs(opts.as);
-        const client = await resolveClient(opts.network, opts.as, opts.token);
+        const { handle, network } = await resolveAs(opts.as, opts.network);
+        const client = await resolveClient(network, handle, opts.token);
         await client.acceptContactRequest(requestId);
         out(`Accepted contact request ${requestId}. Both agents' allowlists have been updated.`);
       }),
@@ -146,8 +147,8 @@ function makeDeclineCmd(): Command {
     .option("--token <token>", "Override the stored agent bearer token")
     .action(
       wrap(async (requestId: string, opts: AgentNetworkOpts) => {
-        requireAs(opts.as);
-        const client = await resolveClient(opts.network, opts.as, opts.token);
+        const { handle, network } = await resolveAs(opts.as, opts.network);
+        const client = await resolveClient(network, handle, opts.token);
         await client.declineContactRequest(requestId);
         out(`Declined contact request ${requestId}.`);
       }),
@@ -166,13 +167,22 @@ interface AgentNetworkJsonOpts extends AgentNetworkOpts {
   readonly json: boolean;
 }
 
-function requireAs(handle: string | undefined): asserts handle is string {
-  if (!handle) {
+async function resolveAs(
+  explicit: string | undefined,
+  network: string,
+): Promise<{ handle: string; network: string }> {
+  if (explicit !== undefined) return { handle: explicit, network };
+  const identity = await resolveIdentity();
+  if (!identity) {
     process.stderr.write(
-      "asp: --as <handle> is required — specify the acting agent handle\n",
+      "asp: --as <handle> is required, or set a directory identity with `asp identity set`\n",
     );
     process.exit(1);
   }
+  return {
+    handle: identity.handle,
+    network: network === DEFAULT_NETWORK ? identity.network : network,
+  };
 }
 
 async function resolveClient(
