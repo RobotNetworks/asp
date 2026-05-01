@@ -47,21 +47,41 @@ jobs:
         with:
           generate_release_notes: true
           draft: false
-          prerelease: ${{ contains(github.ref_name, '-') }}
+          # `prerelease` defaults to false. We can't compute it from
+          # github.ref_name here because the `cli-v` prefix always contains a
+          # hyphen, and GitHub Actions expressions have no replace() function.
+          # If a prerelease is needed, mark it in the GitHub UI after the run.
 
   bump-homebrew:
     name: bump homebrew tap
     needs: publish
-    # Skip prereleases like cli-v0.1.0-rc.1. We can't just check `contains(ref_name, '-')`
-    # because the tag prefix `cli-v` already contains a hyphen — we have to strip the
-    # prefix first, then look for a hyphen in the version itself.
-    if: ${{ !contains(replace(github.ref_name, 'cli-v', ''), '-') }}
     runs-on: ubuntu-latest
     steps:
+      # Prerelease tags like cli-v0.1.0-rc.1 have a hyphen in the version
+      # portion (after the cli-v prefix). We can't gate this in the job-level
+      # `if:` because GitHub Actions expressions have no string-replace
+      # function — checking for `-` in github.ref_name would always match
+      # the cli-v prefix. So we compute is_prerelease in a shell step and
+      # gate every subsequent step on its output.
+      - name: Detect prerelease
+        id: detect
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          VERSION="${REF_NAME#cli-v}"
+          if [[ "$VERSION" == *-* ]]; then
+            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+            echo "Prerelease detected ($VERSION); homebrew bump will be skipped."
+          else
+            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Wait for npm registry to propagate
+        if: steps.detect.outputs.is_prerelease == 'false'
         run: sleep 30
 
       - name: Update Homebrew tap formula
+        if: steps.detect.outputs.is_prerelease == 'false'
         env:
           TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           REF_NAME: ${{ github.ref_name }}
