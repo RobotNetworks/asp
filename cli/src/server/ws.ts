@@ -129,6 +129,13 @@ export class WSHub {
     this.#contactUnsub?.();
     for (const ws of this.#adminConns) ws.terminate();
     this.#adminConns.clear();
+    // Terminate every per-agent connection too, otherwise the underlying
+    // http server's close() waits for the still-open sockets and the
+    // supervisor times out on shutdown (10s grace → SIGKILL warning).
+    for (const set of this.#connections.values()) {
+      for (const ws of set) ws.terminate();
+    }
+    this.#connections.clear();
     this.#wss.close();
   }
 

@@ -212,4 +212,26 @@ describe("WS /connect", () => {
     wsHub.close();
     await server.close();
   });
+
+  it("hub.close() drops live agent connections so server.close() resolves promptly", async () => {
+    // Regression: previously hub.close() only terminated admin tap conns.
+    // Per-agent connections stayed open, so the underlying http server's
+    // close() blocked waiting for them — `asp stop` then timed out on the
+    // 10-second SIGTERM grace and warned about needing --force.
+    const { server, agentStore, wsHub } = await setupWithWS();
+
+    const alice = agentStore.register("@alice.bot", { policy: "open" });
+    const ws = connectWS(server.port, alice.token);
+    await wsOpen(ws);
+
+    wsHub.close();
+
+    const t0 = Date.now();
+    await server.close();
+    const elapsed = Date.now() - t0;
+    assert.ok(
+      elapsed < 1000,
+      `server.close() took ${elapsed}ms with one live agent connection — hub.close() did not terminate it`,
+    );
+  });
 });
