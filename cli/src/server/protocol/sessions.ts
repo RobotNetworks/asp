@@ -38,12 +38,20 @@ export function buildSessionRoutes(
     const parsed = parseCreateRequest(body);
     if ("error" in parsed) return c.json({ error: parsed.error }, 400);
 
-    // Filter invitees by policy (non-enumeration: silently omit rejects)
+    // Filter invitees by policy (non-enumeration: silently omit rejects).
+    // If invitees were explicitly listed but every one gets filtered out, the
+    // request fails with 404 — silently succeeding would let the operator mask
+    // any failed contact attempt as a zero-invite session, breaking the
+    // non-enumeration property (Whitepaper §6.2, Appendix A #8).
+    const requestedInvitees = parsed.invite ?? [];
     const filteredInvitees: string[] = [];
-    for (const handle of parsed.invite ?? []) {
+    for (const handle of requestedInvitees) {
       const invitee = agentStore.get(handle);
       if (!invitee) continue;
       if (canInvite(agent.handle, invitee)) filteredInvitees.push(handle);
+    }
+    if (requestedInvitees.length > 0 && filteredInvitees.length === 0) {
+      return c.json({ error: "not_found" }, 404);
     }
 
     const result = sessionStore.create({
@@ -56,15 +64,12 @@ export function buildSessionRoutes(
       ...(parsed.end_after_send === true ? { endAfterSend: true } : {}),
     });
 
-    return c.json(
-      {
-        session_id: result.session.id,
-        ...(result.messageSequence !== undefined
-          ? { sequence: result.messageSequence }
-          : {}),
-      },
-      201,
-    );
+    return c.json({
+      session_id: result.session.id,
+      ...(result.messageSequence !== undefined
+        ? { sequence: result.messageSequence }
+        : {}),
+    });
   });
 
   // ── GET / — list sessions for the calling agent ───────────────────────────

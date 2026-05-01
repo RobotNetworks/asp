@@ -44,7 +44,7 @@ export function buildContactRoutes(
         : undefined;
 
     const req = contactStore.create(caller.handle, to, message);
-    return c.json({ request_id: req.id }, 201);
+    return c.json({ request_id: req.id });
   });
 
   // GET /contacts — list contact requests for the caller

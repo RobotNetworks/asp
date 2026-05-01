@@ -14,7 +14,7 @@ describe("InMemoryContactStore/create", () => {
   it("creates a pending contact request", () => {
     const store = make();
     const req = store.create("@alice.bot", "@bob.bot");
-    assert.ok(req.id.startsWith("cr_"));
+    assert.ok(req.id.startsWith("req_"));
     assert.equal(req.from, "@alice.bot");
     assert.equal(req.to, "@bob.bot");
     assert.equal(req.status, "pending");

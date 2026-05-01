@@ -12,6 +12,15 @@ export interface ContactRequest {
   readonly resolved_at?: number;
 }
 
+export interface ContactEvent {
+  readonly type: "contact.requested" | "contact.accepted" | "contact.declined";
+  readonly request_id: string;
+  readonly payload: Readonly<Record<string, unknown>>;
+}
+
+/** Called after each contact lifecycle change with the event and the handle of the recipient. */
+export type ContactObserver = (event: ContactEvent, recipient: string) => void;
+
 export class ContactError extends Error {
   readonly code: ContactErrorCode;
   constructor(code: ContactErrorCode) {
@@ -46,6 +55,8 @@ export interface ContactStore {
    * List all contact requests where the agent is the sender or recipient.
    */
   listForAgent(handle: string): ContactRequest[];
+  /** Register an observer for contact lifecycle events. Returns an unsubscribe function. */
+  subscribe(observer: ContactObserver): () => void;
 }
 
 type MutableContactRequest = {
@@ -54,6 +65,12 @@ type MutableContactRequest = {
 
 export class InMemoryContactStore implements ContactStore {
   readonly #byId = new Map<string, MutableContactRequest>();
+  readonly #observers = new Set<ContactObserver>();
+
+  subscribe(observer: ContactObserver): () => void {
+    this.#observers.add(observer);
+    return () => this.#observers.delete(observer);
+  }
 
   create(from: string, to: string, message?: string): ContactRequest {
     const req: MutableContactRequest = {
@@ -65,6 +82,10 @@ export class InMemoryContactStore implements ContactStore {
     };
     if (message !== undefined) req.message = message;
     this.#byId.set(req.id, req);
+    this.#notify(
+      { type: "contact.requested", request_id: req.id, payload: { from, to, ...(message !== undefined ? { message } : {}) } },
+      to,
+    );
     return snapshot(req);
   }
 
@@ -77,6 +98,10 @@ export class InMemoryContactStore implements ContactStore {
     const req = this.#require(requestId, callerHandle);
     req.status = "accepted";
     req.resolved_at = Date.now();
+    this.#notify(
+      { type: "contact.accepted", request_id: req.id, payload: { by: callerHandle } },
+      req.from,
+    );
     return snapshot(req);
   }
 
@@ -100,6 +125,10 @@ export class InMemoryContactStore implements ContactStore {
     if (req.status !== "pending") throw new ContactError("not_pending");
     return req;
   }
+
+  #notify(event: ContactEvent, recipient: string): void {
+    for (const obs of this.#observers) obs(event, recipient);
+  }
 }
 
 function snapshot(req: MutableContactRequest): ContactRequest {
@@ -107,5 +136,5 @@ function snapshot(req: MutableContactRequest): ContactRequest {
 }
 
 function generateRequestId(): string {
-  return `cr_${randomBytes(12).toString("base64url")}`;
+  return `req_${randomBytes(12).toString("base64url")}`;
 }

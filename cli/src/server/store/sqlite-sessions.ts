@@ -71,6 +71,7 @@ export class SqliteSessionStore implements SessionStore {
   readonly #updateParticipantStatus: StatementSync;
   readonly #insertEvent: StatementSync;
   readonly #selectEvents: StatementSync;
+  readonly #selectEventByIdempotencyKey: StatementSync;
   readonly #selectSessionsByParticipant: StatementSync;
 
   constructor(db: DatabaseSync) {
@@ -109,6 +110,10 @@ export class SqliteSessionStore implements SessionStore {
     this.#selectEvents = db.prepare(
       "SELECT * FROM session_events WHERE session_id = ? ORDER BY sequence",
     );
+    this.#selectEventByIdempotencyKey = db.prepare(
+      "SELECT * FROM session_events WHERE session_id = ? AND type = 'session.message' " +
+        "AND json_extract(payload, '$.idempotency_key') = ? LIMIT 1",
+    );
     this.#selectSessionsByParticipant = db.prepare(
       "SELECT s.* FROM sessions s " +
         "JOIN participants p ON p.session_id = s.id " +
@@ -138,6 +143,7 @@ export class SqliteSessionStore implements SessionStore {
           invitee: handle,
           by: opts.creator,
           ...(opts.topic !== undefined ? { topic: opts.topic } : {}),
+          ...(opts.initialMessage !== undefined ? { initial_message: opts.initialMessage } : {}),
         });
       }
 
@@ -230,9 +236,18 @@ export class SqliteSessionStore implements SessionStore {
     if (!p || p.status !== "joined") {
       throw new SessionError("not_joined", `${sender} must be joined to send messages`);
     }
+    // Idempotency: return existing result if the key was already used in this session
+    if (opts.idempotencyKey !== undefined) {
+      const existing = this.#selectEventByIdempotencyKey.get(sessionId, opts.idempotencyKey) as EventRow | undefined;
+      if (existing) {
+        const existingPayload = JSON.parse(existing.payload) as Record<string, unknown>;
+        return { session: this.#loadSession(sessionId)!, messageId: existingPayload["id"] as string, sequence: existing.sequence };
+      }
+    }
     const now = Date.now();
     const msgId = generateMessageId();
-    const sequence = this.#nextSequence(sessionId);
+    // Peek at current sequence so the payload and event sequence stay consistent
+    const sequence = sess.next_sequence;
     this.#pushEvent(sessionId, "session.message", {
       id: msgId,
       session_id: sessionId,

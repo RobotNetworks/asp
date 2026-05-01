@@ -56,9 +56,9 @@ describe("POST /contacts", () => {
       headers: headers(alice.token),
       body: JSON.stringify({ to: "@bob.bot" }),
     });
-    assert.equal(res.status, 201);
+    assert.equal(res.status, 200);
     const body = (await json(res)) as { request_id: string };
-    assert.ok(body.request_id.startsWith("cr_"));
+    assert.ok(body.request_id.startsWith("req_"));
   });
 
   it("stores an optional message", async () => {
@@ -69,7 +69,7 @@ describe("POST /contacts", () => {
       headers: headers(alice.token),
       body: JSON.stringify({ to: "@bob.bot", message: "hi there" }),
     });
-    assert.equal(res.status, 201);
+    assert.equal(res.status, 200);
     const body = (await json(res)) as { request_id: string };
     const req = s.contactStore.get(body.request_id)!;
     assert.equal(req.message, "hi there");

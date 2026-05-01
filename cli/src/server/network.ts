@@ -59,7 +59,7 @@ export async function startNetwork(
   const sessionStore = new SqliteSessionStore(db);
   const contactStore = new SqliteContactStore(db);
   const wsHub = new WSHub();
-  wsHub.attach(store, sessionStore, adminToken);
+  wsHub.attach({ agentStore: store, sessionStore, contactStore, adminToken });
   const handle = await startServer({
     app: buildApp({ network: opts.network, store, sessionStore, contactStore, adminToken, resetFn: () => resetDatabase(db) }),
     host: opts.host,

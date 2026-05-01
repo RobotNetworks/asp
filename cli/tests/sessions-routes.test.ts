@@ -77,7 +77,7 @@ describe("POST /sessions", () => {
       headers: agentHeaders(agent.token),
       body: JSON.stringify({}),
     });
-    assert.equal(res.status, 201);
+    assert.equal(res.status, 200);
     const body = (await json(res)) as { session_id: string };
     assert.ok(body.session_id.startsWith("sess_"));
   });
@@ -90,14 +90,16 @@ describe("POST /sessions", () => {
       headers: agentHeaders(alice.token),
       body: JSON.stringify({ invite: ["@bob.bot"] }),
     });
-    assert.equal(res.status, 201);
+    assert.equal(res.status, 200);
     const body = (await json(res)) as { session_id: string };
     const sess = s.sessionStore.get(body.session_id)!;
     const bob = sess.participants.find((p) => p.handle === "@bob.bot");
     assert.equal(bob?.status, "invited");
   });
 
-  it("silently omits invitees with allowlist policy and no allowlist entry", async () => {
+  it("returns 404 when the only invitee has allowlist policy and no allowlist entry", async () => {
+    // Non-enumeration: don't let the operator mask a failed contact attempt
+    // as a zero-invite session (Whitepaper §6.2, Appendix A #8).
     const alice = s.agentStore.register("@alice.bot", { policy: "open" });
     s.agentStore.register("@bob.bot", { policy: "allowlist" });
     const res = await fetch(`${baseUrl(s.port)}/sessions`, {
@@ -105,23 +107,34 @@ describe("POST /sessions", () => {
       headers: agentHeaders(alice.token),
       body: JSON.stringify({ invite: ["@bob.bot"] }),
     });
-    assert.equal(res.status, 201);
-    const body = (await json(res)) as { session_id: string };
-    const sess = s.sessionStore.get(body.session_id)!;
-    assert.equal(sess.participants.length, 1); // only alice
+    assert.equal(res.status, 404);
   });
 
-  it("silently omits unknown handles in invite list", async () => {
+  it("returns 404 when the only invitee is an unknown handle", async () => {
     const alice = s.agentStore.register("@alice.bot", { policy: "open" });
     const res = await fetch(`${baseUrl(s.port)}/sessions`, {
       method: "POST",
       headers: agentHeaders(alice.token),
       body: JSON.stringify({ invite: ["@ghost.bot"] }),
     });
-    assert.equal(res.status, 201);
+    assert.equal(res.status, 404);
+  });
+
+  it("silently omits filtered invitees when at least one survives", async () => {
+    // When some invitees survive policy filtering, the request still
+    // succeeds and the rejected handles are simply omitted — that preserves
+    // non-enumeration without breaking the request.
+    const alice = s.agentStore.register("@alice.bot", { policy: "open" });
+    s.agentStore.register("@bob.bot", { policy: "open" });
+    const res = await fetch(`${baseUrl(s.port)}/sessions`, {
+      method: "POST",
+      headers: agentHeaders(alice.token),
+      body: JSON.stringify({ invite: ["@bob.bot", "@ghost.bot"] }),
+    });
+    assert.equal(res.status, 200);
     const body = (await json(res)) as { session_id: string };
     const sess = s.sessionStore.get(body.session_id)!;
-    assert.equal(sess.participants.length, 1);
+    assert.equal(sess.participants.length, 2); // alice + bob
   });
 
   it("returns 400 when end_after_send=true without initial_message", async () => {

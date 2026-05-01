@@ -15,7 +15,7 @@ async function setupWithWS() {
   const sessionStore = new InMemorySessionStore();
   const contactStore = new InMemoryContactStore();
   const wsHub = new WSHub();
-  wsHub.attach(agentStore, sessionStore);
+  wsHub.attach({ agentStore, sessionStore });
   const app = buildApp({
     network: "test",
     store: agentStore,

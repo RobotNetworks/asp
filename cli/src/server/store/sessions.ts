@@ -184,6 +184,7 @@ export class InMemorySessionStore implements SessionStore {
         invitee: handle,
         by: opts.creator,
         ...(opts.topic !== undefined ? { topic: opts.topic } : {}),
+        ...(opts.initialMessage !== undefined ? { initial_message: opts.initialMessage } : {}),
       });
     }
 
@@ -284,6 +285,17 @@ export class InMemorySessionStore implements SessionStore {
     const p = sess.participants.find((x) => x.handle === sender);
     if (!p || p.status !== "joined") {
       throw new SessionError("not_joined", `${sender} must be joined to send messages`);
+    }
+    // Idempotency: return existing result if the key was already used in this session
+    if (opts.idempotencyKey !== undefined) {
+      for (const event of sess.events) {
+        if (
+          event.type === "session.message" &&
+          event.payload["idempotency_key"] === opts.idempotencyKey
+        ) {
+          return { session: snapshot(sess), messageId: event.payload["id"] as string, sequence: event.sequence };
+        }
+      }
     }
     const now = Date.now();
     const msgId = generateMessageId();

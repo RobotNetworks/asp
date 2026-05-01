@@ -17,7 +17,7 @@ async function setup() {
   const sessionStore = new InMemorySessionStore();
   const contactStore = new InMemoryContactStore();
   const wsHub = new WSHub();
-  wsHub.attach(agentStore, sessionStore, ADMIN_TOKEN);
+  wsHub.attach({ agentStore, sessionStore, adminToken: ADMIN_TOKEN });
   const app = buildApp({
     network: "test",
     store: agentStore,
@@ -70,7 +70,7 @@ describe("WS /_admin/tap", () => {
     const sessionStore = new InMemorySessionStore();
     const contactStore = new InMemoryContactStore();
     const wsHub = new WSHub();
-    wsHub.attach(agentStore, sessionStore); // no adminToken
+    wsHub.attach({ agentStore, sessionStore }); // no adminToken
     const app = buildApp({
       network: "test",
       store: agentStore,

@@ -3,6 +3,8 @@ import type { DatabaseSync, StatementSync } from "node:sqlite";
 
 import {
   ContactError,
+  type ContactEvent,
+  type ContactObserver,
   type ContactRequest,
   type ContactStore,
   type ContactRequestStatus,
@@ -24,6 +26,7 @@ export class SqliteContactStore implements ContactStore {
   readonly #selectById: StatementSync;
   readonly #listForAgent: StatementSync;
   readonly #updateStatus: StatementSync;
+  readonly #observers = new Set<ContactObserver>();
 
   constructor(db: DatabaseSync) {
     this.#insert = db.prepare(
@@ -39,8 +42,13 @@ export class SqliteContactStore implements ContactStore {
     );
   }
 
+  subscribe(observer: ContactObserver): () => void {
+    this.#observers.add(observer);
+    return () => this.#observers.delete(observer);
+  }
+
   create(from: string, to: string, message?: string): ContactRequest {
-    const id = `cr_${randomBytes(12).toString("base64url")}`;
+    const id = `req_${randomBytes(12).toString("base64url")}`;
     const now = Date.now();
     this.#insert.run(id, from, to, message ?? null, now);
     const req: ContactRequest = {
@@ -51,6 +59,10 @@ export class SqliteContactStore implements ContactStore {
       created_at: now,
       ...(message !== undefined ? { message } : {}),
     };
+    this.#notify(
+      { type: "contact.requested", request_id: id, payload: { from, to, ...(message !== undefined ? { message } : {}) } },
+      to,
+    );
     return req;
   }
 
@@ -60,7 +72,12 @@ export class SqliteContactStore implements ContactStore {
   }
 
   accept(requestId: string, callerHandle: string): ContactRequest {
-    return this.#resolveRequest(requestId, callerHandle, "accepted");
+    const result = this.#resolveRequest(requestId, callerHandle, "accepted");
+    this.#notify(
+      { type: "contact.accepted", request_id: requestId, payload: { by: callerHandle } },
+      result.from,
+    );
+    return result;
   }
 
   decline(requestId: string, callerHandle: string): ContactRequest {
@@ -83,6 +100,10 @@ export class SqliteContactStore implements ContactStore {
     const now = Date.now();
     this.#updateStatus.run(status, now, requestId);
     return rowToRequest({ ...row, status, resolved_at: now });
+  }
+
+  #notify(event: ContactEvent, recipient: string): void {
+    for (const obs of this.#observers) obs(event, recipient);
   }
 }
 
