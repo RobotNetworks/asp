@@ -52,7 +52,10 @@ jobs:
   bump-homebrew:
     name: bump homebrew tap
     needs: publish
-    if: ${{ !contains(github.ref_name, '-') }} # skip prereleases like cli-v0.1.0-rc.1
+    # Skip prereleases like cli-v0.1.0-rc.1. We can't just check `contains(ref_name, '-')`
+    # because the tag prefix `cli-v` already contains a hyphen — we have to strip the
+    # prefix first, then look for a hyphen in the version itself.
+    if: ${{ !contains(replace(github.ref_name, 'cli-v', ''), '-') }}
     runs-on: ubuntu-latest
     steps:
       - name: Wait for npm registry to propagate
