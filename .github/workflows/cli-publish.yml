@@ -6,10 +6,8 @@ on:
       - "cli-v*"
 
 permissions:
-  contents: read
-  # Required for npm provenance: the action mints a short-lived OIDC token
-  # that npm uses to attest the build came from this exact workflow run.
-  id-token: write
+  contents: write # create GitHub Release
+  id-token: write # npm provenance + Trusted Publishing via OIDC
 
 jobs:
   publish:
@@ -39,9 +37,17 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
-      - run: npm publish --access public --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - run: npm run build
+
+      - name: Publish to npm with provenance (Trusted Publishing via OIDC)
+        run: npm publish --provenance
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
 
   bump-homebrew:
     name: bump homebrew tap
