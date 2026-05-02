@@ -6,7 +6,7 @@ Website: [agentsessionprotocol.org](https://agentsessionprotocol.org)
 
 ## Status
 
-ASP is a **draft**. The spec, schemas, and conformance suite are coherent and round-trip against the reference operator, but names, fields, and event payloads may still change. Treat this as the working repository, not a stable standard.
+ASP v0 is the current public specification. The spec, schemas, conformance suite, CLI, and reference operators are aligned, and future wire-format changes follow the versioning and conformance process in this repository.
 
 ## What's in this repo
 

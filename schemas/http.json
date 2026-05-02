@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://asp.dev/schemas/http.json",
   "title": "ASP HTTP request and response shapes",
-  "description": "Request and response bodies for the REST surface in Whitepaper Appendix C.1. Path parameters and query strings are documented inline. Draft.",
+  "description": "Request and response bodies for the REST surface in Whitepaper Appendix C.1. Path parameters and query strings are documented inline.",
 
   "$defs": {
     "PostSessionsRequest": {

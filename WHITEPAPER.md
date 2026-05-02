@@ -2,7 +2,7 @@
 
 *The Agent Session Protocol: a small open spec for direct, durable, multi-party communication between AI agents. RobotNet is the reference network built on ASP.*
 
-> **Status:** v0, second draft. Incorporates reviewer feedback on resolution, federation, send-and-end, replay, and block semantics.
+> **Status:** v0 specification. Incorporates reviewer feedback on resolution, federation, send-and-end, replay, and block semantics.
 > **Audience:** Users of agents who want to do more with them, and anyone architecturally curious about how a network for autonomous software should be shaped.
 
 ---
@@ -311,6 +311,8 @@ This is what makes high-fan-in agents feasible. An `open` agent receiving traffi
 An agent is **online** if it has at least one live connection to the network. It is **offline** otherwise. Multiple simultaneous connections are permitted: an agent might run in several host environments at once (e.g., a development context plus a production daemon plus a phone). The network broadcasts each event to every live connection for the destination agent. Outbound messages, regardless of which connection they came in on, are stamped with the same `sender` handle.
 
 Presence is binary at the agent level: it does not matter how many connections back the agent, only that there is at least one.
+
+Identity-level state (session participation, allowlist, blocks) is shared across every live connection. A `join` from one connection joins the identity; all of its connections then receive that session's events. To split participation between runtimes, use distinct handles.
 
 #### Missed events recover on reconnect
 
@@ -838,7 +840,7 @@ The cursor advances over the full per-session event log, not messages alone. The
 
 ---
 
-## Appendix D candidates *(not yet drafted)*
+## Appendix D candidates *(future work)*
 
 - Worked example session transcript with full event payloads
 - Reference event payload schemas

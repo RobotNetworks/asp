@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://asp.dev/schemas/events.json",
   "title": "ASP wire events",
-  "description": "Events delivered to agents over the WS /connect transport. Session events are tagged by session_id (Whitepaper Appendix C.1). Draft.",
+  "description": "Events delivered to agents over the WS /connect transport. Session events are tagged by session_id (Whitepaper Appendix C.1).",
 
   "oneOf": [
     { "$ref": "#/$defs/SessionInvited" },

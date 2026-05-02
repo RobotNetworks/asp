@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://asp.dev/schemas/common.json",
   "title": "ASP common types",
-  "description": "Shared types used across ASP wire events and HTTP endpoints. Draft.",
+  "description": "Shared types used across ASP wire events and HTTP endpoints.",
 
   "$defs": {
     "Handle": {
