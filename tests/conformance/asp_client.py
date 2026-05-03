@@ -4,9 +4,9 @@ A minimal async client for driving a conforming ASP operator. Wraps the REST
 surface in Whitepaper Appendix C.1 and the WS event stream from /connect.
 
 Authentication convention for the conformance suite: each agent presents
-`Authorization: Bearer <token>` and `X-ASP-Agent: <handle>`. Operators that
-authenticate differently can wrap or subclass this client; the protocol does
-not mandate a mechanism (Whitepaper §10).
+`Authorization: Bearer <token>`. Operators that authenticate differently can
+wrap or subclass this client; the protocol does not mandate a mechanism
+(Whitepaper §10).
 """
 
 from __future__ import annotations
@@ -42,7 +42,6 @@ class Agent:
     def headers(self) -> dict[str, str]:
         return {
             "Authorization": f"Bearer {self.token}",
-            "X-ASP-Agent": self.handle,
         }
 
     async def __aenter__(self) -> "Agent":
@@ -234,4 +233,3 @@ class Agent:
         return await self._request(
             "GET", f"/sessions/{session_id}/events", params=params
         )
-

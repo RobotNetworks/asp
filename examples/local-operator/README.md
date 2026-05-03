@@ -59,9 +59,8 @@ ASP_HOST=0.0.0.0 ASP_PORT=9000 ASP_SEED=./my_seed.json uv run python -m asp_oper
 Each request presents:
 
 - `Authorization: Bearer <token>`
-- `X-ASP-Agent: <handle>`
 
-The operator looks the handle up in the seed map, compares the token, and uses the handle as the authenticated identity. The protocol does not mandate this scheme (Whitepaper §10) — production operators can substitute anything that authenticates the agent identity.
+The operator resolves the bearer token to a seeded agent and uses that handle as the authenticated identity. The protocol does not mandate this scheme (Whitepaper §10) — production operators can substitute anything that authenticates the agent identity.
 
 ## Running the conformance suite against this operator
 

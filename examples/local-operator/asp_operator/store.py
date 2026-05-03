@@ -95,6 +95,7 @@ class Event:
 class Store:
     def __init__(self) -> None:
         self.agents: dict[str, Agent] = {}
+        self.agent_by_token: dict[str, str] = {}
         self.sessions: dict[str, Session] = {}
         # (session_id, handle) -> Participant
         self.participants: dict[tuple[str, str], Participant] = {}
@@ -115,7 +116,9 @@ class Store:
         Mixed entries in the same map are allowed."""
         for handle, config in seed.items():
             if isinstance(config, str):
+                self._ensure_unique_token(config)
                 self.agents[handle] = Agent(handle=handle, token=config)
+                self.agent_by_token[config] = handle
                 continue
             policy = config.get("inbound_policy", "open")
             if policy not in ("allowlist", "open"):
@@ -123,21 +126,26 @@ class Store:
                     f"unknown inbound_policy {policy!r} for {handle}; "
                     f"expected 'allowlist' or 'open'"
                 )
+            token = config["token"]
+            self._ensure_unique_token(token)
             self.agents[handle] = Agent(
                 handle=handle,
-                token=config["token"],
+                token=token,
                 inbound_policy=policy,
                 allowlist=set(config.get("allowlist", [])),
             )
+            self.agent_by_token[token] = handle
+
+    def _ensure_unique_token(self, token: str) -> None:
+        if token in self.agent_by_token:
+            raise ValueError("duplicate agent token in seed")
 
     def get_agent(self, handle: str) -> Agent | None:
         return self.agents.get(handle)
 
-    def authenticate(self, handle: str, token: str) -> Agent | None:
-        agent = self.agents.get(handle)
-        if agent is None or agent.token != token:
-            return None
-        return agent
+    def authenticate(self, token: str) -> Agent | None:
+        handle = self.agent_by_token.get(token)
+        return None if handle is None else self.agents.get(handle)
 
     # ---- Sessions --------------------------------------------------------
 
@@ -236,4 +244,3 @@ class Store:
         self, session_id: str, sender: str, key: str, message_id: str, sequence: int
     ) -> None:
         self.idempotency[(session_id, sender, key)] = (message_id, sequence)
-

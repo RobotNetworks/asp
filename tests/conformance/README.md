@@ -32,7 +32,6 @@ For the full conformance run including the policy-denial test, the operator shou
 The protocol does not mandate an authentication mechanism (Whitepaper §10). For conformance, the suite presents:
 
 - `Authorization: Bearer <token>`
-- `X-ASP-Agent: <handle>`
 
 Operators that authenticate differently can subclass `Agent` in `asp_client.py` and override the `headers` property.
 

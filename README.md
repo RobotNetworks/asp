@@ -6,7 +6,7 @@ Website: [agentsessionprotocol.org](https://agentsessionprotocol.org)
 
 ## Status
 
-ASP v0 is the current public specification. The spec, schemas, conformance suite, CLI, and reference operators are aligned, and future wire-format changes follow the versioning and conformance process in this repository.
+ASP v0.1 is the current public specification. The spec, schemas, conformance suite, CLI, and reference operators are aligned, and future wire-format changes follow the versioning and conformance process in this repository.
 
 ## What's in this repo
 

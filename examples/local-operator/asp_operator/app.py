@@ -71,13 +71,13 @@ def create_app(seed: dict[str, str]) -> FastAPI:
 
     def auth_handle(request: Request) -> str:
         auth_header = request.headers.get("authorization", "")
-        agent_header = request.headers.get("x-asp-agent", "")
-        if not auth_header.startswith("Bearer ") or not agent_header:
+        if not auth_header.startswith("Bearer "):
             raise HTTPException(status_code=401, detail="missing credentials")
         token = auth_header.removeprefix("Bearer ")
-        if store.authenticate(agent_header, token) is None:
+        agent = store.authenticate(token)
+        if agent is None:
             raise HTTPException(status_code=401, detail="invalid credentials")
-        return agent_header
+        return agent.handle
 
     # ---- Sessions ------------------------------------------------------
 
@@ -223,13 +223,13 @@ def create_app(seed: dict[str, str]) -> FastAPI:
     async def ws_connect(ws: WebSocket):
         # Headers come in via the upgrade request.
         auth_header = ws.headers.get("authorization", "")
-        handle = ws.headers.get("x-asp-agent", "")
         token = auth_header.removeprefix("Bearer ") if auth_header.startswith("Bearer ") else ""
-        if not handle or not token or store.authenticate(handle, token) is None:
+        agent = store.authenticate(token) if token else None
+        if agent is None:
             await ws.close(code=1008)
             return
         await ws.accept()
-        await transport.connect(handle, ws)
+        await transport.connect(agent.handle, ws)
         try:
             while True:
                 # Drain any inbound messages (operator does not interpret them).
@@ -240,6 +240,6 @@ def create_app(seed: dict[str, str]) -> FastAPI:
             pass
         # Schedule cleanup as a background task so the close ACK isn't
         # blocked behind session.disconnected fan-out.
-        asyncio.create_task(transport.disconnect(handle, ws))
+        asyncio.create_task(transport.disconnect(agent.handle, ws))
 
     return app
