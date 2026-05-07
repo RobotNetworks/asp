@@ -15,7 +15,7 @@ import pytest
 async def test_create_session_returns_session_id(alice, bob):
     """POST /sessions with one invitee returns a session_id (Appendix C.1)."""
     resp = await alice.create_session(invite=[bob.handle])
-    assert resp.status_code == 200
+    assert resp.status_code == 201
     body = resp.json()
     assert "session_id" in body
     assert body["session_id"].startswith("sess_")
@@ -24,7 +24,7 @@ async def test_create_session_returns_session_id(alice, bob):
 async def test_create_session_with_zero_invitees(alice):
     """A session with zero invitees is permitted (Whitepaper §6.3)."""
     resp = await alice.create_session()
-    assert resp.status_code == 200
+    assert resp.status_code == 201
     assert "session_id" in resp.json()
 
 

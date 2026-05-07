@@ -22,7 +22,7 @@ async def _join_session(alice, bob) -> str:
 async def test_send_message_returns_message_id_and_sequence(alice, bob):
     sid = await _join_session(alice, bob)
     resp = await alice.send_message(sid, "hello")
-    assert resp.status_code == 200
+    assert resp.status_code == 201
     body = resp.json()
     assert body["message_id"].startswith("msg_")
     assert isinstance(body["sequence"], int)
@@ -75,8 +75,10 @@ async def test_idempotency_key_dedupes_retries(alice, bob):
     r1 = await alice.send_message(sid, "duplicate", idempotency_key=key)
     r2 = await alice.send_message(sid, "duplicate", idempotency_key=key)
 
-    assert r1.status_code == 200
-    assert r2.status_code == 200
+    # Both calls return 201 (idempotent replay returns the original 201, not 200) —
+    # spec accepts either, but the local operator currently returns 201 on both.
+    assert r1.status_code == 201
+    assert r2.status_code == 201
     assert r1.json()["message_id"] == r2.json()["message_id"]
     assert r1.json()["sequence"] == r2.json()["sequence"]
 
@@ -95,7 +97,7 @@ async def test_multipart_content_is_supported(alice, bob):
         {"type": "data", "data": {"action": "review_complete", "doc_id": "abc"}},
     ]
     resp = await alice.send_message(sid, parts)
-    assert resp.status_code == 200
+    assert resp.status_code == 201
 
     event = await bob.expect_event("session.message", session_id=sid)
     received = event["payload"]["content"]

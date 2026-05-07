@@ -64,12 +64,18 @@ export function buildSessionRoutes(
       ...(parsed.end_after_send === true ? { endAfterSend: true } : {}),
     });
 
-    return c.json({
-      session_id: result.session.id,
-      ...(result.messageSequence !== undefined
-        ? { sequence: result.messageSequence }
-        : {}),
-    });
+    // 201 Created per RFC 9110 §15.3.2: a new session resource is identified
+    // by `session_id`. Lifecycle verbs (join, invite, leave, end, reopen)
+    // mutate state without creating a top-level resource and stay 200.
+    return c.json(
+      {
+        session_id: result.session.id,
+        ...(result.messageSequence !== undefined
+          ? { sequence: result.messageSequence }
+          : {}),
+      },
+      201,
+    );
   });
 
   // ── GET / — list sessions for the calling agent ───────────────────────────
@@ -154,7 +160,12 @@ export function buildSessionRoutes(
     } catch (err) {
       return mapSessionError(c, err);
     }
-    return c.json({ message_id: result.messageId, sequence: result.sequence });
+    // 201 Created per RFC 9110 §15.3.2: a new message resource is identified
+    // by `message_id`.
+    return c.json(
+      { message_id: result.messageId, sequence: result.sequence },
+      201,
+    );
   });
 
   // ── POST /:id/leave ───────────────────────────────────────────────────────

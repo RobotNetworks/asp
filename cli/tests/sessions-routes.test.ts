@@ -74,7 +74,7 @@ describe("POST /sessions", () => {
       headers: agentHeaders(agent.token),
       body: JSON.stringify({}),
     });
-    assert.equal(res.status, 200);
+    assert.equal(res.status, 201);
     const body = (await json(res)) as { session_id: string };
     assert.ok(body.session_id.startsWith("sess_"));
   });
@@ -87,7 +87,7 @@ describe("POST /sessions", () => {
       headers: agentHeaders(alice.token),
       body: JSON.stringify({ invite: ["@bob.bot"] }),
     });
-    assert.equal(res.status, 200);
+    assert.equal(res.status, 201);
     const body = (await json(res)) as { session_id: string };
     const sess = s.sessionStore.get(body.session_id)!;
     const bob = sess.participants.find((p) => p.handle === "@bob.bot");
@@ -128,7 +128,7 @@ describe("POST /sessions", () => {
       headers: agentHeaders(alice.token),
       body: JSON.stringify({ invite: ["@bob.bot", "@ghost.bot"] }),
     });
-    assert.equal(res.status, 200);
+    assert.equal(res.status, 201);
     const body = (await json(res)) as { session_id: string };
     const sess = s.sessionStore.get(body.session_id)!;
     assert.equal(sess.participants.length, 2); // alice + bob
@@ -252,7 +252,7 @@ describe("POST /sessions/:id/messages", () => {
       headers: agentHeaders(alice.token),
       body: JSON.stringify({ content: "hello!" }),
     });
-    assert.equal(res.status, 200);
+    assert.equal(res.status, 201);
     const body = (await json(res)) as { message_id: string; sequence: number };
     assert.ok(body.message_id.startsWith("msg_"));
     assert.equal(typeof body.sequence, "number");

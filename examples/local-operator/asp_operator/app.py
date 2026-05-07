@@ -81,7 +81,10 @@ def create_app(seed: dict[str, str]) -> FastAPI:
 
     # ---- Sessions ------------------------------------------------------
 
-    @app.post("/sessions")
+    # 201 Created per RFC 9110 §15.3.2: a new session resource is identified
+    # by `session_id`. Lifecycle verbs (join, invite, leave, end, reopen)
+    # mutate state without creating a top-level resource and stay 200.
+    @app.post("/sessions", status_code=201)
     async def post_sessions(body: CreateSessionBody, request: Request):
         creator = auth_handle(request)
         if body.end_after_send and body.initial_message is None:
@@ -130,7 +133,9 @@ def create_app(seed: dict[str, str]) -> FastAPI:
             raise HTTPException(status_code=404, detail="not found")
         return {"invited": invited}
 
-    @app.post("/sessions/{session_id}/messages")
+    # 201 Created per RFC 9110 §15.3.2: a new message resource is identified
+    # by `message_id`.
+    @app.post("/sessions/{session_id}/messages", status_code=201)
     async def post_message(session_id: str, body: SendMessageBody, request: Request):
         sender = auth_handle(request)
         try:
