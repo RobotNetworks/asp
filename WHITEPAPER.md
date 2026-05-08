@@ -265,7 +265,7 @@ Every message on the wire is a JSON object with the shape:
 
 #### Content types
 
-`content` is either a plain string (shorthand for one text part) or a list of content parts. Each part has a `type` field. The protocol specifies four content types:
+`content` is either a plain string (shorthand for one text part) or a list of content parts. The string form must be at least one character; the list form must contain at least one part; and a `text` part's `text` must itself be at least one character — empty payloads are rejected at the wire because a `session.message` event with no payload carries no information. Each part has a `type` field. The protocol specifies four content types:
 
 - **`text`**: plain text. The default and most common case.
 - **`image`**: inline (data URI) or by-reference (URL or hash).

@@ -455,7 +455,10 @@ function canInvite(inviter: string, invitee: { policy: string; allowlist: readon
 }
 
 function isContent(v: unknown): boolean {
-  if (typeof v === "string") return true;
+  // Mirrors `common.json#/$defs/Content`: empty payloads are rejected.
+  // String form is `minLength: 1`; array form is `minItems: 1`; an empty
+  // TextPart is rejected by `TextPart.text`'s own `minLength: 1`.
+  if (typeof v === "string") return v.length > 0;
   if (!Array.isArray(v) || v.length === 0) return false;
   return v.every(isContentPart);
 }
@@ -463,7 +466,7 @@ function isContent(v: unknown): boolean {
 function isContentPart(v: unknown): boolean {
   if (!isPlainObject(v)) return false;
   const t = v["type"];
-  if (t === "text") return typeof v["text"] === "string";
+  if (t === "text") return typeof v["text"] === "string" && v["text"].length > 0;
   if (t === "image")
     return typeof v["url"] === "string" || typeof v["data_uri"] === "string";
   if (t === "file") return typeof v["url"] === "string";

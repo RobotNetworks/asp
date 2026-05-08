@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import asyncio
 import json
-from typing import Any
+from typing import Annotated, Any
 
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import AfterValidator, BaseModel, Field
 
 from .service import (
     Conflict,
@@ -26,8 +26,34 @@ from .transport import Transport
 # ---------------------------------------------------------------------------
 
 
+def _require_non_empty_content(value: Any) -> Any:
+    """Schema bar from `common.json#/$defs/Content`: empty payloads are
+    rejected. The string form needs `minLength: 1`, the array form
+    needs `minItems: 1`, and a `TextPart` with empty `text` is rejected
+    by `TextPart.text`'s own `minLength: 1`.
+    """
+    if isinstance(value, str):
+        if len(value) == 0:
+            raise ValueError("content must not be empty")
+    elif isinstance(value, list):
+        if len(value) == 0:
+            raise ValueError("content must contain at least one part")
+        for part in value:
+            if (
+                isinstance(part, dict)
+                and part.get("type") == "text"
+                and isinstance(part.get("text"), str)
+                and len(part["text"]) == 0
+            ):
+                raise ValueError("text part must not be empty")
+    return value
+
+
+Content = Annotated[Any, AfterValidator(_require_non_empty_content)]
+
+
 class InitialMessage(BaseModel):
-    content: Any
+    content: Content
     metadata: dict | None = None
 
 
@@ -44,7 +70,7 @@ class InviteBody(BaseModel):
 
 
 class SendMessageBody(BaseModel):
-    content: Any
+    content: Content
     idempotency_key: str | None = None
     metadata: dict | None = None
 

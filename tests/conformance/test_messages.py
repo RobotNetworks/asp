@@ -105,6 +105,27 @@ async def test_multipart_content_is_supported(alice, bob):
     assert {p["type"] for p in received} == {"text", "file", "data"}
 
 
+@pytest.mark.parametrize(
+    "empty_content",
+    [
+        pytest.param("", id="empty-string"),
+        pytest.param([], id="empty-array"),
+        pytest.param([{"type": "text", "text": ""}], id="empty-text-part"),
+    ],
+)
+async def test_empty_content_is_rejected(alice, bob, empty_content):
+    """Operators MUST reject empty message payloads (Content schema:
+    string `minLength: 1`, array `minItems: 1`, TextPart.text
+    `minLength: 1`). An empty payload carries no information and would
+    create a meaningless `session.message` event.
+    """
+    sid = await _join_session(alice, bob)
+    resp = await alice.send_message(sid, empty_content)
+    assert 400 <= resp.status_code < 500, (
+        f"expected 4xx for empty content {empty_content!r}, got {resp.status_code}"
+    )
+
+
 async def test_event_validates_against_schema(alice, bob, event_validator):
     """Wire events conform to schemas/events.json (Appendix A #9)."""
     sid = await _join_session(alice, bob)
