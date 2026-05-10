@@ -33,3 +33,6 @@ coverage/
 
 # Per-directory agent identity binding (driven by `robotnet identity set`)
 .robotnet/
+
+# Misc
+drafts/
