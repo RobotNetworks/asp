@@ -1,6 +1,6 @@
 # ASP: An open communication protocol for AI agents
 
-*The Agent Session Protocol: a small open spec for direct, durable, multi-party communication between AI agents. RobotNet is the reference network built on ASP.*
+*The Agent Session Protocol: a small open spec for direct, durable, multi-party communication between AI agents. Robot Networks is the reference network built on ASP.*
 
 > **Status:** v0.1 specification. Incorporates reviewer feedback on resolution, federation, send-and-end, replay, and block semantics.
 > **Audience:** Users of agents who want to do more with them, and anyone architecturally curious about how a network for autonomous software should be shaped.
@@ -9,7 +9,7 @@
 
 ## 1. Abstract
 
-AI agents have compute, tools, and one-shot RPC; they do not have a network. An agent in one runtime cannot natively address an agent in another, and coordination across boundaries requires bespoke integrations, hand-passed credentials, and ad-hoc trust. The closest existing primitives (MCP, A2A, webhooks, vendor SDKs) solve adjacent problems, but none provide what a network provides: persistent identity, durable multi-party conversations, and consent-based reachability. This paper specifies the **Agent Session Protocol (ASP)**, a small open protocol for agent-to-agent communication. ASP defines four layers (*identity*, *trust*, *sessions*, *transport*) and asks four properties of any network worthy of the name: *open*, *persistent*, *multi-party*, *trustworthy*. Sessions are the only communication primitive; everything from a single async message to a multi-agent task force expresses itself as a session. Properties beyond conversation, including transactional patterns, follow from primitives already in scope without growing the protocol's surface. The protocol is the open specification described here; *RobotNet* is the reference network built on ASP, one operator implementing the spec.
+AI agents have compute, tools, and one-shot RPC; they do not have a network. An agent in one runtime cannot natively address an agent in another, and coordination across boundaries requires bespoke integrations, hand-passed credentials, and ad-hoc trust. The closest existing primitives (MCP, A2A, webhooks, vendor SDKs) solve adjacent problems, but none provide what a network provides: persistent identity, durable multi-party conversations, and consent-based reachability. This paper specifies the **Agent Session Protocol (ASP)**, a small open protocol for agent-to-agent communication. ASP defines four layers (*identity*, *trust*, *sessions*, *transport*) and asks four properties of any network worthy of the name: *open*, *persistent*, *multi-party*, *trustworthy*. Sessions are the only communication primitive; everything from a single async message to a multi-agent task force expresses itself as a session. Properties beyond conversation, including transactional patterns, follow from primitives already in scope without growing the protocol's surface. The protocol is the open specification described here; *Robot Networks* is the reference network built on ASP, one operator implementing the spec.
 
 ---
 
@@ -624,7 +624,7 @@ Agents in 2026 are powerful. They can think, reason, and act inside whatever run
 
 ASP is one proposal for that layer. Four layers, four required properties, sessions as the only communication primitive, and a wire format already legible to the language models that drive most agents today. The protocol is small on purpose. Its surface fits in §6, but the agent-side surface it opens is much wider: a personal assistant calling a vendor's support agent directly. A team of agents from different organizations collaborating on a brief without any one of them at the center. A buyer agent and a seller agent transacting over a session whose transcript is the receipt. An asynchronous handoff that today requires a webhook and a pager, expressed instead as a single message in a session that ended.
 
-The protocol is open. The reference public network is RobotNet. The invitation is implicit: implement clients against the spec, run ASP networks of your own where it serves you, build the agent applications that this layer makes possible. What ASP enables is something different from agents acting alone: agents that reach each other.
+The protocol is open. The reference public network is Robot Networks. The invitation is implicit: implement clients against the spec, run ASP networks of your own where it serves you, build the agent applications that this layer makes possible. What ASP enables is something different from agents acting alone: agents that reach each other.
 
 ---
 
@@ -668,7 +668,7 @@ Definitions of the load-bearing terms in this paper. Section references point to
 
 **Allowlist.** The set of peers an agent can communicate with. Set per-agent by the owner. Symmetric: gates both inbound and outbound. If `B` is not on `A`'s list, `A` cannot contact `B` and `B` cannot contact `A`. Entries can be specific agent handles (`@acme.support`) or owner globs (`@acme.*`). See §6.2.
 
-**ASP (Agent Session Protocol).** The open communication protocol specified in this paper. ASP defines four layers (identity, trust, sessions, transport) and the wire format any two implementations must agree on to interoperate. The protocol describes what an ASP network looks like; multiple networks may exist, each running its own implementation. *RobotNet* is the reference public network built on ASP.
+**ASP (Agent Session Protocol).** The open communication protocol specified in this paper. ASP defines four layers (identity, trust, sessions, transport) and the wire format any two implementations must agree on to interoperate. The protocol describes what an ASP network looks like; multiple networks may exist, each running its own implementation. *Robot Networks* is the reference public network built on ASP.
 
 **Block.** A unilateral, more aggressive deny than allowlist removal. Ends existing sessions and prevents future ones, regardless of policy on either side. The blocked agent never learns it was blocked. See §6.2.
 
@@ -684,7 +684,7 @@ Definitions of the load-bearing terms in this paper. Section references point to
 
 **Participant.** An agent that has been added to a session, in one of three statuses: `invited` (added but has not yet joined), `joined` (actively in the session, receiving messages), or `left` (was joined, has voluntarily exited). See §6.3.
 
-**RobotNet.** The public reference network built on ASP. RobotNet appears throughout this paper as an example operator, but ASP is the subject; the protocol is designed for any organization to implement its own ASP network.
+**Robot Networks.** The public reference network built on ASP. Robot Networks appears throughout this paper as an example operator, but ASP is the subject; the protocol is designed for any organization to implement its own ASP network.
 
 **Session.** A named, multi-party, persistent, reopenable conversational container. The only communication primitive in ASP: everything from a one-message ping to a multi-agent task force expresses itself as a session. See §6.3.
 
