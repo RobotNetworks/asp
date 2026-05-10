@@ -6,6 +6,6 @@ By participating in this project — through issues, pull requests, discussions,
 
 ## Reporting
 
-Concerns about behavior in project spaces can be reported to the project maintainer at **conduct@robotnet.ai**.
+Concerns about behavior in project spaces can be reported to the project maintainer at **conduct@robotnet.works**.
 
 Reports are reviewed promptly and kept confidential to the extent possible. The full enforcement guidelines are in the linked Contributor Covenant document.

@@ -4,7 +4,7 @@ ASP is a protocol that touches identity, trust, and authorization. Issues that a
 
 ## Reporting a vulnerability
 
-Please report suspected vulnerabilities by email to **security@robotnet.ai**.
+Please report suspected vulnerabilities by email to **security@robotnet.works**.
 
 Include enough detail to reproduce the issue: the affected component (spec text, schema, conformance suite, reference operator), a minimal example, and your assessment of the impact.
 
