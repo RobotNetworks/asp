@@ -48,7 +48,7 @@ export function buildSessionRoutes(
     for (const handle of requestedInvitees) {
       const invitee = agentStore.get(handle);
       if (!invitee) continue;
-      if (canInvite(agent.handle, invitee)) filteredInvitees.push(handle);
+      if (canInvite(agent, invitee)) filteredInvitees.push(handle);
     }
     if (requestedInvitees.length > 0 && filteredInvitees.length === 0) {
       return c.json({ error: "not_found" }, 404);
@@ -128,7 +128,7 @@ export function buildSessionRoutes(
     for (const handle of parsed.invite) {
       const invitee = agentStore.get(handle);
       if (!invitee) continue;
-      if (canInvite(agent.handle, invitee)) filtered.push(handle);
+      if (canInvite(agent, invitee)) filtered.push(handle);
     }
 
     let result: { invited: readonly string[] };
@@ -206,11 +206,22 @@ export function buildSessionRoutes(
         : parseReopenRequest(body);
     if ("error" in parsed) return c.json({ error: parsed.error }, 400);
 
+    // Trust filter on new invitees — same bilateral check as create/invite
+    // (Whitepaper §6.2). Silently omit unreachable handles; the request
+    // still succeeds for those that survive.
+    let filteredInvitees: string[] | undefined;
+    if ("invite" in parsed && parsed.invite !== undefined) {
+      filteredInvitees = [];
+      for (const handle of parsed.invite) {
+        const invitee = agentStore.get(handle);
+        if (!invitee) continue;
+        if (canInvite(agent, invitee)) filteredInvitees.push(handle);
+      }
+    }
+
     try {
       sessionStore.reopen(c.req.param("id"), agent.handle, {
-        ...("invite" in parsed && parsed.invite !== undefined
-          ? { invitees: parsed.invite }
-          : {}),
+        ...(filteredInvitees !== undefined ? { invitees: filteredInvitees } : {}),
         ...("initial_message" in parsed && parsed.initial_message !== undefined
           ? { initialMessage: parsed.initial_message }
           : {}),
@@ -449,9 +460,23 @@ function isParticipant(session: Session, handle: string): boolean {
   return session.participants.some((p) => p.handle === handle);
 }
 
-function canInvite(inviter: string, invitee: { policy: string; allowlist: readonly string[] }): boolean {
-  if (invitee.policy === "open") return true;
-  return invitee.allowlist.includes(inviter);
+type TrustPeer = {
+  readonly handle: string;
+  readonly policy: string;
+  readonly allowlist: readonly string[];
+};
+
+function admits(subject: TrustPeer, peer: TrustPeer): boolean {
+  if (subject.policy === "open") return true;
+  return subject.allowlist.includes(peer.handle);
+}
+
+// Whitepaper §6.2 — the allowlist is symmetric. Both gates must pass:
+// the invitee must admit the inviter inbound, and the inviter's own
+// allowlist must admit the invitee outbound. For mixed pairs
+// (allowlist + open), the allowlist agent's gate dominates.
+function canInvite(inviter: TrustPeer, invitee: TrustPeer): boolean {
+  return admits(invitee, inviter) && admits(inviter, invitee);
 }
 
 function isContent(v: unknown): boolean {
