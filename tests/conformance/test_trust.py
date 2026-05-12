@@ -52,6 +52,30 @@ async def test_allowlist_denial_returns_404(alice):
     )
 
 
+async def test_creator_allowlist_must_include_invitee_returns_404(closed, alice):
+    """The allowlist is symmetric: the creator's own outbound gate must
+    allow the invitee, even when the invitee's inbound policy allows the
+    creator (Whitepaper §6.2).
+
+    Scenario: `@closed.test` has `inbound_policy: allowlist` with an empty
+    allowlist, so `@alice.test` is *not* on its list. Even though
+    `@alice.test` has `inbound_policy: open` and would accept inbound from
+    anyone, the session must be refused because the creator's gate denies
+    the invitee. Per §6.2: "the `allowlist` agent's gate dominates."
+
+    A pre-fix operator that only checked the invitee's policy would return
+    200 here (alice is open, so she "accepts"). The spec requires 404.
+    """
+    resp = await closed.create_session(invite=[alice.handle])
+    assert resp.status_code != 403, "policy denials must not surface as 403"
+    assert resp.status_code == 404, (
+        f"creator with restrictive allowlist that excludes the invitee must "
+        f"see a 404 even when the invitee is open; got {resp.status_code}. "
+        f"This indicates the operator is only checking one direction of the "
+        f"allowlist — see Whitepaper §6.2 'The allowlist is symmetric'."
+    )
+
+
 # ---- Self-authentication --------------------------------------------------
 
 

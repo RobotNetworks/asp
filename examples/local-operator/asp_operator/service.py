@@ -79,6 +79,13 @@ class Service:
             return True
         return False
 
+    def _can_initiate(self, initiator: str, peer: str) -> bool:
+        # Whitepaper §6.2: the allowlist is symmetric. Both gates must pass —
+        # the initiator must be allowed by the peer's policy *and* the peer
+        # must be allowed by the initiator's policy. For mixed pairs
+        # (allowlist + open) the allowlist agent's gate dominates.
+        return self._reachable(initiator, peer) and self._reachable(peer, initiator)
+
     # ---- Sessions: create, invite, join, leave, end, reopen --------------
 
     async def create_session(
@@ -94,7 +101,7 @@ class Service:
             # privacy property (Whitepaper §6.2). If any invitee is unreachable,
             # the whole request fails with 404.
             for h in invite:
-                if not self._reachable(creator, h):
+                if not self._can_initiate(creator, h):
                     raise TrustDenied()
 
             sess = self.store.create_session(creator=creator, topic=topic)
@@ -190,7 +197,7 @@ class Service:
 
             invited: list[str] = []
             for h in invite:
-                if not self._reachable(caller, h):
+                if not self._can_initiate(caller, h):
                     continue  # silent omission per §6.2
                 p = self.store.get_participant(session_id, h)
                 if p is not None and p.status in ("invited", "joined"):
@@ -297,7 +304,7 @@ class Service:
                 session_id, "session.reopened", {"reopened_by": handle}
             )
             for h in invite or []:
-                if not self._reachable(handle, h):
+                if not self._can_initiate(handle, h):
                     continue
                 existing = self.store.get_participant(session_id, h)
                 if existing is None:

@@ -96,6 +96,27 @@ async def carol(operator_url: str, agent_tokens: dict[str, str]):
         yield a
 
 
+@pytest.fixture
+async def closed(operator_url: str, agent_tokens: dict[str, str]):
+    """An agent with `inbound_policy: allowlist` and an empty allowlist.
+
+    Optional — skipped when the operator does not provide a token for
+    `@closed.test`. Used to exercise allowlist denials in both directions
+    (the agent's own outbound allowlist is also empty, so it cannot
+    initiate sessions with anyone).
+    """
+    token = agent_tokens.get("@closed.test")
+    if token is None:
+        pytest.skip("operator did not provide a token for @closed.test")
+    async with Agent("@closed.test", token, operator_url) as a:
+        # Note: @closed.test cannot establish a /connect session reaching it
+        # from peers under a strict-allowlist posture, but the WS itself is
+        # an authentication-only channel — connect anyway so tests can
+        # exercise REST endpoints with an authenticated identity.
+        await a.connect()
+        yield a
+
+
 # ---------------------------------------------------------------------------
 # Schema-validating fixture
 # ---------------------------------------------------------------------------
